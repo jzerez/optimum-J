@@ -1,0 +1,35 @@
+classdef Plane
+   properties
+        position;
+        normal;
+   end
+   
+   methods
+       function self = Plane(varargin)
+           % Constructor Function. Can define plane by 3 points, or two
+           % vectors that are in plane
+           if nargin > 2
+               % Defined by 3 Points
+               self.position = varargin{1};
+               v1 = varargin{2} - varargin{1};
+               v2 = varargin{3} - varargin{1};
+               self.normal = cross(v1, v2);
+           else
+                % Defined by 2 Planar Line Segments
+                line1 = varargin{1};
+                self.position = line1.position;
+                self.
+           end
+       end
+       
+       function res = is_in_plane(self, point)
+            v = point - self.position;
+            if dot(v, self.normal) == 0
+                res = 1;
+                return
+            end
+            res = 0;
+       end
+       
+   end
+end

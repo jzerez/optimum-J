@@ -50,9 +50,8 @@ classdef ActionGroup
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
-            shock_step_size = self.static_shock.total_travel / num_steps;
+            step_size = self.static_shock.total_travel / num_steps;
             shock_start_step = self.static_shock.total_travel / -2;
-            rack_step_size = self.static_rack.max_travel / num_steps;
             rack_start_step = self.static_rack.max_travel / -2;
             shock_steps = linspace(shock_start_step, -shock_start_step, num_steps+1);
             self = self.take_shock_step(shock_start_step);
@@ -64,24 +63,21 @@ classdef ActionGroup
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
             end
             for indexi = 1:num_steps
-                self = self.take_shock_step(shock_step_size);
+                self = self.take_shock_step(step_size);
                 if plot_on
 %                     waitforbuttonpress;
                     plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
                     drawnow()
                 end
-                self = self.reset_rack();
-                plot_system_3d('m', self.curr_knuckle)
                 [self, thetad] = self.take_rack_step(rack_start_step);
-                plot_system_3d('r', self.curr_knuckle)
                 toes(indexi, 1) = thetad;
                 for indexj = 1:num_steps
-                    [self, thetad] = self.take_rack_step(rack_step_size);
+                    [self, thetad] = self.take_rack_step(step_size);
                     toes(indexi, indexj+1) = thetad;
                     plot_system_3d('g', self.curr_knuckle)
 %                     waitforbuttonpress;
                 end
-                
+                self = self.reset_rack();
                 
                 cambers(indexi + 1) = self.curr_knuckle.calc_camber();
             end
@@ -89,13 +85,8 @@ classdef ActionGroup
                 figure
                 hold on
                 plot(shock_steps, cambers)
-                xlabel('shock displacement (from static) (in)')
-                ylabel('Camber (degrees)')
-                
-                figure
-                imagesc(toes)
-                xlabel('Steering Input')
-                ylabel('Shock Displacement')
+                plot(shock_steps, toes)
+                legend('Camber', 'Toe')
             end
         end
         
@@ -189,8 +180,11 @@ classdef ActionGroup
         end
         
         function self = reset_rack(self)
-            self.curr_rack.endpoint_location = self.static_rack.endpoint_location;
-            [self, ~] = self.calc_knuckle_rotation();
+            old_endpoint = self.curr_rack.endpoint_location;
+            self.curr_rack = self.curr_rack.reset_endpoint();
+            disp = old_endpoint - self.curr_rack.endpoint_location;
+            disassert(norm(disp) == disp(1));
+            [self,~] = self.take_rack_step(disp(1));
         end
     end
 end

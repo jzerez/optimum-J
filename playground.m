@@ -5,7 +5,7 @@ bounding = [-1, -1, -1, -1,  1,  1,  1,  1;...
             -1,  1, -1,  1, -1,  1, -1,  1;];
 bounding2 = bounding + [1;2;2];
 bounding = bounding * 200;
-r = Region(bounding, bounding2);
+r =  Region(bounding, bounding2);
 r.is_within_region([1.4;2;2])
 
 p1 = [8.4; 4.5; 25.6];
@@ -26,8 +26,9 @@ n22 = Node(p22, r);
 n33 = Node(p33, r);
 upper_wishbone = AArm(n33, n22, n11);
 
-p_outboard_toe = [6.1; 6.75; 30.2];
-knuckle = Knuckle(upper_wishbone.tip, lower_wishbone.tip, p_outboard_toe, -1, -0.75, true);
+p_inboard_toe = [6.1; 6.75; 30.2];
+p_outboard_toe = [24.39; 6.63; 32.98];
+knuckle = Knuckle(upper_wishbone.tip, lower_wishbone.tip, p_outboard_toe, -0.75, -1, true);
 
 p_pushrod_in = [11.1; 15.0; 27.6];
 p_pushrod_out = p3;
@@ -51,18 +52,19 @@ p_shock_in = action_plane.project_into_plane([8.3; 20.7; 27.2]);
 n_shock = Node(p_shock_in, r);
 shock = Shock(n_shock, p_rocker_shock, action_plane);
 
-ag = ActionGroup(rocker, shock, pushrod, lower_wishbone, upper_wishbone, knuckle, rack);
+testag = ActionGroup(rocker, shock, pushrod, lower_wishbone, upper_wishbone, knuckle, rack);
 
 hold on
 
 plot_system_3d('y', lower_wishbone, upper_wishbone, knuckle)
 plot_system_3d('y', n3, n33)
-plot_system_3d('y', rocker, pushrod)
-
+plot_system_3d('y', rocker, pushrod, knuckle)
+plot_system_3d('k', rack)
+ 
 tic
-for iter = 1:500
+for iter = 1:1
     hold on
-    ag.perform_sweep(100, 0);
+    ag.perform_sweep(6, 1);
 end
 toc
 % 50000 simulations = 72 seconds as of 3/9/19

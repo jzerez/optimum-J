@@ -70,8 +70,8 @@ classdef Knuckle
                 direction = -1;
             end
             theta = unsigned_toe_offset * direction;
-            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), forward_v(1), forward_v(2), forward_v(3), 'b')
-            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), toe_lever(1), toe_lever(2), toe_lever(3), 'r');
+            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), forward_v(1), forward_v(2), forward_v(3))
+            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), 
         end
         
     end

@@ -47,5 +47,23 @@ function plot_system_3d(varargin)
             plot3(v(1, :), v(2, :), v(3, :), 'Color', color, 'LineStyle', '-.')
             scatter3(v(1, :), v(2, :), v(3, :), 20, 'filled', color);
         end
+        
+        if isa(curr_element, 'Knuckle')
+            v = curr_element.toe_center;
+            v2 = curr_element.toe_point;
+            scatter3(v(1), v(2), v(3), 'r*');
+            scatter3(v2(1), v2(2), v2(3), color, '*');
+        end
+        
+        if isa(curr_element, 'Rack')
+            p = curr_element.location_node.location;
+            v1 = curr_element.endpoint_location;
+            v2 = p - (curr_element.static_length / 2) * [1;0;0];
+            v = [v1, v2];
+            
+            scatter3(p(1), p(2), p(3), 20, color)
+            plot3(v(1, :), v(2, :), v(3, :), 'Color', color)
+        end
+            
     end
 end

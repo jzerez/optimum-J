@@ -6,7 +6,6 @@ function [v1, v2] = calc_sphere_circle_int(sphere_center, sphere_radius, circle_
 
     circle_center2d = circle_plane.convert_to_planar_coor(circle_center);
 
-    disp(circle_radius)
     [x,y] = circcirc(sphere_center2d(1), sphere_center2d(2), sphere_eff_radius, ...
                      circle_center2d(1), circle_center2d(2), circle_radius);
 

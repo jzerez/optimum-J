@@ -52,7 +52,7 @@ p_shock_in = action_plane.project_into_plane([8.3; 20.7; 27.2]);
 n_shock = Node(p_shock_in, r);
 shock = Shock(n_shock, p_rocker_shock, action_plane);
 
-testag = ActionGroup(rocker, shock, pushrod, lower_wishbone, upper_wishbone, knuckle, rack);
+ag = ActionGroup(rocker, shock, pushrod, lower_wishbone, upper_wishbone, knuckle, rack);
 
 hold on
 
@@ -67,7 +67,8 @@ for iter = 1:1
     ag.perform_sweep(6, 1);
 end
 toc
-% 50000 simulations = 72 seconds as of 3/9/19
+% 50000 simulations = 72 seconds as of 3/9/19 (Shock Sweep only)
+% 5000 Simulations = 120 seconds as of 3/19/19 (Shock and Rack Sweep)
 
 
 

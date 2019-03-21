@@ -50,20 +50,38 @@ classdef ActionGroup
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
-            shock_step_size = self.static_shock.total_travel / num_steps;
+            shock_step_size = self.static_shock.total_travel / (num_steps - 1);
             shock_start_step = self.static_shock.total_travel / -2;
-            rack_step_size = self.static_rack.max_travel / num_steps;
+            rack_step_size = self.static_rack.max_travel / (num_steps - 1);
             rack_start_step = self.static_rack.max_travel / -2;
-            shock_steps = linspace(shock_start_step, -shock_start_step, num_steps+1);
+            shock_steps = linspace(shock_start_step, -shock_start_step, num_steps);
+            rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
+            [shock_mesh, rack_mesh] = meshgrid(shock_steps, rack_steps);
+            
             self = self.take_shock_step(shock_start_step);
-            [self, thetad] = self.take_rack_step(rack_start_step);
-            cambers = zeros(size(1:num_steps));
+            self = self.take_rack_step(rack_start_step);
+            
+            cambers = zeros(num_steps);
             toes = zeros(num_steps);
-            cambers(1) = self.curr_knuckle.calc_camber();
+            
+            [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
+            toes(1) = toe;
+            cambers(1) = camber;
+            for index = 2:num_steps
+                self = self.take_rack_step(rack_step_size);
+                [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
+
+                toes(1, index) = toe;
+                cambers(1, index) = camber;
+                if plot_on
+                    plot_system_3d('g', self.curr_knuckle)
+                end
+            end
+            
             if plot_on
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
             end
-            for indexi = 1:num_steps
+            for indexi = 2:num_steps
                 self = self.take_shock_step(shock_step_size);
                 if plot_on
 %                     waitforbuttonpress;
@@ -71,31 +89,40 @@ classdef ActionGroup
                     drawnow()
                 end
                 self = self.reset_rack();
-                plot_system_3d('m', self.curr_knuckle)
-                [self, thetad] = self.take_rack_step(rack_start_step);
-                plot_system_3d('r', self.curr_knuckle)
-                toes(indexi, 1) = thetad;
-                for indexj = 1:num_steps
-                    [self, thetad] = self.take_rack_step(rack_step_size);
-                    toes(indexi, indexj+1) = thetad;
-                    plot_system_3d('g', self.curr_knuckle)
-%                     waitforbuttonpress;
+                self = self.take_rack_step(rack_start_step);
+                [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
+                    
+                toes(indexi, 1) = toe;
+                cambers(indexi, 1) = camber;
+                for indexj = 2:num_steps
+                    self = self.take_rack_step(rack_step_size);
+                    [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
+                    
+                    toes(indexi, indexj) = toe;
+                    cambers(indexi, indexj) = camber;
+                    if plot_on
+                        plot_system_3d('g', self.curr_knuckle)
+%                       waitforbuttonpress;
+                    end
                 end
-                
-                
-                cambers(indexi + 1) = self.curr_knuckle.calc_camber();
             end
             if plot_on
                 figure
                 hold on
-                plot(shock_steps, cambers)
-                xlabel('shock displacement (from static) (in)')
-                ylabel('Camber (degrees)')
+                
+                imagesc(shock_steps, rack_steps, cambers)
+                c = colorbar;
+                ylabel(c, 'Camber (Degrees)')
+                xlabel('Shock Displacement From Static (in)')
+                ylabel('Rack Displacement From Static (in)')
                 
                 figure
-                imagesc(toes)
-                xlabel('Steering Input')
-                ylabel('Shock Displacement')
+                imagesc(shock_steps, rack_steps, toes)
+                c = colorbar;
+                ylabel(c, 'Toe (Degrees)')
+                xlabel('Shock Displacement From Static (in)')
+                ylabel('Rack Displacement From Static (in)')
+                
             end
         end
         
@@ -109,14 +136,9 @@ classdef ActionGroup
             self.curr_knuckle.uca_point = self.curr_uca.tip;
         end
         
-        function [self, thetad] = take_rack_step(self, step)
+        function self = take_rack_step(self, step)
             self.curr_rack = self.curr_rack.calc_new_endpoint(step);
-            if step > 0
-                direction = 1;
-            else
-                direction = -1;
-            end
-            [self, thetad] = self.calc_knuckle_rotation();
+            self = self.calc_knuckle_rotation();
         end
         
         function self = calc_rocker_movement(self, step)
@@ -175,7 +197,7 @@ classdef ActionGroup
             end
         end
         
-        function [self, d_thetad] = calc_knuckle_rotation(self)
+        function self = calc_knuckle_rotation(self)
             previous_location = self.curr_knuckle.toe_point;
             self.curr_knuckle = self.curr_knuckle.update_toe_plane();
             k = self.curr_knuckle;
@@ -185,12 +207,12 @@ classdef ActionGroup
             new_location = self.find_closer_point(previous_location, p1, p2);
 
             self.curr_knuckle.toe_point = new_location;
-            d_thetad = self.curr_knuckle.calc_signed_steering_angle_raw() - self.curr_knuckle.toe_offset;
+            self.curr_knuckle = self.curr_knuckle.update_action_plane();
         end
         
         function self = reset_rack(self)
             self.curr_rack.endpoint_location = self.static_rack.endpoint_location;
-            [self, ~] = self.calc_knuckle_rotation();
+            self = self.calc_knuckle_rotation();
         end
     end
 end

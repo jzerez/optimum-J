@@ -14,6 +14,7 @@ classdef Knuckle
         control_arm_dist;
         lca_actuated;
         toe_plane;
+        action_plane;
         
     end
     
@@ -41,6 +42,8 @@ classdef Knuckle
             
             self.control_arm_dist = norm(uca_point.location - lca_point.location);
             self.lca_actuated = lca_actuated;
+            
+            self.action_plane = Plane(uca_point, lca_point, toe_point);
         end
         
         function res = valid_length(self)
@@ -70,8 +73,34 @@ classdef Knuckle
                 direction = -1;
             end
             theta = unsigned_toe_offset * direction;
-            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), forward_v(1), forward_v(2), forward_v(3))
-            quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), 
+%             quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), forward_v(1), forward_v(2), forward_v(3), 'b')
+%             quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), toe_lever(1), toe_lever(2), toe_lever(3), 'r');
+        end
+        
+        function self = update_action_plane(self)
+            self.action_plane = Plane(self.uca_point, self.lca_point, self.toe_point);
+        end
+        
+        function [camber, toe] = calc_camber_and_toe(self)
+            n = self.action_plane.normal(1);
+            if n(2) > 0
+                camber_direction = 1;
+            else
+                camber_direction = -1;
+            end
+            
+            if n(3) > 0
+                toe_direction = 1;
+            else
+                toe_direction = 0
+            camber_proj_v = unit([n(1); n(2)]);
+            toe_proj_v = unit([n(1); n(3)]);
+            x = [1;0];
+            camber_angle= acosd(dot(x, camber_proj_v));
+            toe_angle = acosd(dot(x, toe_proj_v));
+            camber = camber_angle - self.camber_offset;
+            toe = toe_angle - self.toe_offset;
+            
         end
         
     end

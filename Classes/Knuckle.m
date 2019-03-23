@@ -4,41 +4,28 @@ classdef Knuckle
         lca_point;
         toe_point;
         axis;
-        static_camber;
-        camber_offset;
-        static_toe;
         toe_radius;
         toe_height;
         toe_center;
-        toe_offset;
         control_arm_dist;
         lca_actuated;
         toe_plane;
-        action_plane;
-        
+        action_plane; 
     end
     
     methods
-        function self = Knuckle(uca_point, lca_point, toe_point, static_camber, static_toe, lca_actuated)
+        function self = Knuckle(uca_point, lca_point, toe_point, lca_actuated)
             self.uca_point = uca_point;
             self.lca_point = lca_point;
             self.toe_point = toe_point;
             
             self.axis = unit(uca_point.location - lca_point.location);
-            self.static_camber = static_camber;
-            self.camber_offset = static_camber - atan2d(self.axis(1), self.axis(2));
-            self.static_toe = static_toe;
             
             toe_to_lca = (toe_point - self.lca_point.location);
             self.toe_height = dot(toe_to_lca, self.axis);
             self.toe_center = self.toe_height * self.axis + self.lca_point.location;
             self.toe_radius = norm(toe_to_lca - (self.toe_height*self.axis));
             self.toe_plane = Plane(self.toe_center, self.axis);
-            
-            
-            theta = self.calc_signed_steering_angle_raw();
-            self.toe_offset = theta - self.static_toe;
-            
             
             self.control_arm_dist = norm(uca_point.location - lca_point.location);
             self.lca_actuated = lca_actuated;
@@ -77,14 +64,12 @@ classdef Knuckle
 %             quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), toe_lever(1), toe_lever(2), toe_lever(3), 'r');
         end
         
-        function self = update_action_plane(self)
+        function self = update(self)
             self.action_plane = Plane(self.uca_point.location, self.lca_point.location, self.toe_point);
-            self.camber_offset = 0.00001;
-            self.toe_offset = 0.00001;
         end
         
         function [camber, toe] = calc_camber_and_toe(self)
-            self = self.update_action_plane();
+            self = self.update();
             n = self.action_plane.normal;
             if n(1) > 0
                 n = n * -1;
@@ -104,10 +89,9 @@ classdef Knuckle
             camber_proj_v = unit([n(1); n(2)]);
             toe_proj_v = unit([n(1); n(3)]);
             x = [-1;0];
-            camber_angle= acosd(dot(x, camber_proj_v)) * camber_direction;
-            toe_angle = acosd(dot(x, toe_proj_v)) * toe_direction;
-            camber = camber_angle - self.camber_offset;
-            toe = toe_angle - self.toe_offset;
+            camber = acosd(dot(x, camber_proj_v)) * camber_direction;
+            toe = acosd(dot(x, toe_proj_v)) * toe_direction;
+
             
         end
         

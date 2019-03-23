@@ -62,14 +62,14 @@ plot_system_3d('y', rocker, pushrod, knuckle)
 plot_system_3d('k', rack)
  
 tic
-for iter = 1:1
+for iter = 1:5000
     hold on
-    ag.perform_sweep(6, 1);
+    ag.perform_sweep(6, 0);
 end
 toc
 % 50000 simulations = 72 seconds as of 3/9/19 (Shock Sweep only)
 % 5000 Simulations = 120 seconds as of 3/19/19 (Shock and Rack Sweep)
-% 5000 Simulations = 212 seconds as of 3/23/19 (shock, and rack sweep, 6x6, line
+% 5000 Simulations = as of 3/23/19 (shock, and rack sweep, 6x6, line
 % interference detection)
 
 

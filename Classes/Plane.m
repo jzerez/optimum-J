@@ -29,15 +29,19 @@ classdef Plane
                self.position = varargin{1};
                self.normal = varargin{2};
            end
-           i = self.project_into_plane(self.position + [1;0;0]) - self.position;
+           if isequal(self.normal, [1;0;0])
+                ibase = [0; 1; 0];
+           else
+                ibase = [1; 0; 0];
+           end
+           i = self.project_into_plane(self.position + ibase) - self.position;
            self.i_hat = i / norm(i);
            self.j_hat = cross(self.normal, self.i_hat);
            assert(self.is_in_plane([self.i_hat+self.j_hat+self.position]))
        end
        
        function res = is_in_plane(self, point)
-            v = point - self.position;
-            v = v / norm(v);
+            v = unit(point - self.position);
             dist = abs(dot(v, self.normal));
             if dist < 1e-8
                 res = true;

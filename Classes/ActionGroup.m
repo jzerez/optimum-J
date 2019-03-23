@@ -19,6 +19,11 @@ classdef ActionGroup
         curr_uca;
         curr_rack;
         curr_knuckle;
+        
+        max_height;
+        min_height;
+        horizontal_scrub_upwards;
+        horizontal_scrub_downwards;
     end
    
     methods
@@ -50,6 +55,7 @@ classdef ActionGroup
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
+            static_lateral_pos = self.curr_lca.tip.location(1);
             shock_step_size = self.static_shock.total_travel / (num_steps - 1);
             shock_start_step = self.static_shock.total_travel / -2;
             rack_step_size = self.static_rack.max_travel / (num_steps - 1);
@@ -59,8 +65,14 @@ classdef ActionGroup
             [shock_mesh, rack_mesh] = meshgrid(shock_steps, rack_steps);
             
             self = self.take_shock_step(shock_start_step);
+            self.max_height = self.curr_lca.tip.location(2);
+            self.horizontal_scrub_upwards = self.curr_lca.tip.location(1) - static_lateral_pos;
             self = self.take_rack_step(rack_start_step);
             
+            if self.interference_detection()
+                disp('INTERFERENCE DETECTED')
+                return
+            end
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
             
@@ -69,6 +81,10 @@ classdef ActionGroup
             cambers(1) = camber;
             for index = 2:num_steps
                 self = self.take_rack_step(rack_step_size);
+                if self.interference_detection()
+                    disp('INTERFERENCE DETECTED')
+                    return
+                end
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
                 toes(1, index) = toe;
@@ -90,12 +106,20 @@ classdef ActionGroup
                 end
                 self = self.reset_rack();
                 self = self.take_rack_step(rack_start_step);
+                if self.interference_detection()
+                    disp('INTERFERENCE DETECTED')
+                    return
+                end
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                 toes(indexi, 1) = toe;
                 cambers(indexi, 1) = camber;
                 for indexj = 2:num_steps
                     self = self.take_rack_step(rack_step_size);
+                    if self.interference_detection()
+                        disp('INTERFERENCE DETECTED')
+                        return
+                    end
                     [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                     toes(indexi, indexj) = toe;
@@ -106,22 +130,30 @@ classdef ActionGroup
                     end
                 end
             end
+            self.min_height = self.curr_lca.tip.location(2);
+            self.horizontal_scrub_downwards = self.curr_lca.tip.location(1) - static_lateral_pos;
+            if self.max_height - self.min_height < 2
+                disp('NOT ENOUGH VERTICAL WHEEL TRAVEL. WHEEL TRAVEL IS:')
+                disp(self.max_height - self.min_height);
+            end
+            disp(self.horizontal_scrub_downwards)
+            disp(self.horizontal_scrub_upwards)
             if plot_on
                 figure
                 hold on
                 
-                imagesc(shock_steps, rack_steps, cambers)
+                imagesc(rack_steps, shock_steps, cambers)
                 c = colorbar;
                 ylabel(c, 'Camber (Degrees)')
-                xlabel('Shock Displacement From Static (in)')
-                ylabel('Rack Displacement From Static (in)')
+                xlabel('Rack Displacement From Static (in)')
+                ylabel('Shock Displacement From Static (in)')
                 
                 figure
-                imagesc(shock_steps, rack_steps, toes)
+                imagesc(rack_steps, shock_steps, toes)
                 c = colorbar;
                 ylabel(c, 'Toe (Degrees)')
-                xlabel('Shock Displacement From Static (in)')
-                ylabel('Rack Displacement From Static (in)')
+                xlabel('Rack Displacement From Static (in)')
+                ylabel('Shock Displacement From Static (in)')
                 
             end
         end
@@ -129,11 +161,9 @@ classdef ActionGroup
         function self = take_shock_step(self, step)
             self = self.calc_rocker_movement(step);
             self.curr_lca = self.calc_xca_movement(self.curr_lca, self.curr_pushrod.inboard_point, self.curr_pushrod.length);
-            self.curr_knuckle.lca_point = self.curr_lca.tip;
             
             self.curr_pushrod.outboard_point = self.curr_lca.tip.location;
             self.curr_uca = self.calc_xca_movement(self.curr_uca, self.curr_knuckle.lca_point.location, self.curr_knuckle.control_arm_dist);
-            self.curr_knuckle.uca_point = self.curr_uca.tip;
         end
         
         function self = take_rack_step(self, step)
@@ -207,12 +237,55 @@ classdef ActionGroup
             new_location = self.find_closer_point(previous_location, p1, p2);
 
             self.curr_knuckle.toe_point = new_location;
-            self.curr_knuckle = self.curr_knuckle.update_action_plane();
+            self.curr_knuckle = self.curr_knuckle.update();
         end
         
         function self = reset_rack(self)
             self.curr_rack.endpoint_location = self.static_rack.endpoint_location;
             self = self.calc_knuckle_rotation();
+        end
+        
+        function res = interference_detection(self)
+            res = true;
+            r = 0.3;
+            % Check for toe-link lca interference
+            if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
+                                      self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r)
+                return;
+            end
+            % Check for toe-link lca interference (second arm)
+            if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
+                                      self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r)
+                return;
+            end
+            % Check for pushrod toelink interference
+            if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
+                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                return;
+            end
+%             
+%             % Check for pushrod lca interference
+%             if line_line_interference(self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r,...
+%                                       self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+%                 return;
+%             end
+%             % Check for pushrod lca interference (second arm)
+%             if line_line_interference(self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r,...
+%                                       self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+%                 return;
+%             end
+            % Check for pushrod uca interference
+            if line_line_interference(self.curr_uca.endpoints(1).location, self.curr_uca.tip.location, r,...
+                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                return;
+            end
+            % Check for pushrod uca interference (second arm)
+            if line_line_interference(self.curr_uca.endpoints(2).location, self.curr_uca.tip.location, r,...
+                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                return;
+            end
+            
+            res = false;
         end
     end
 end

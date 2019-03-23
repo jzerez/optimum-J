@@ -1,4 +1,4 @@
-classdef Node
+classdef Node < handle
     properties
         location;
         region;

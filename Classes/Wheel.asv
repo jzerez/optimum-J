@@ -2,10 +2,14 @@ classdef Wheel
     properties
         center;
         axis;
+        axis_point;
         radii;
         axial_dists;
         static_camber;
         static_toe;
+        contact_patch;
+        
+        plane;
     end
     
     methods
@@ -21,7 +25,14 @@ classdef Wheel
             x = cosd(static_toe) / h;
             z = sind(static_toe) / h;
             self.axis = unit([x; y; z]);
+            self.axis_point = self.center + self.axis;
             
+            self.contact_patch = self.calc_contact_patch();
+            
+            self.plane = Plane(self.center, self.axis);
         end
+        
+        function 
+        
     end
 end

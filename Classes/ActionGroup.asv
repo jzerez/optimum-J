@@ -24,6 +24,8 @@ classdef ActionGroup
         min_height;
         horizontal_scrub_upwards;
         horizontal_scrub_downwards;
+        front_view_plane = Plane([0; 0; 30.5], [0; 0; 1]);
+        side_view_plane = Plane([25; 0; 0], [1; 0; 0]);
     end
    
     methods
@@ -66,7 +68,7 @@ classdef ActionGroup
             
             self = self.take_shock_step(shock_start_step);
             self.max_height = self.curr_lca.tip.location(2);
-            self.horizontal_scrub_upwards = self.curr_lca.tip.location(1) - 
+            self.horizontal_scrub_upwards = self.curr_lca.tip.location(1) - static_lateral_pos;
             self = self.take_rack_step(rack_start_step);
             
             if self.interference_detection()
@@ -76,6 +78,7 @@ classdef ActionGroup
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
             
+            self.curr_knuckle = self.curr_knuckle.update();
             [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
             toes(1) = toe;
             cambers(1) = camber;
@@ -85,6 +88,7 @@ classdef ActionGroup
                     disp('INTERFERENCE DETECTED')
                     return
                 end
+                self.curr_knuckle = self.curr_knuckle.update();
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
                 toes(1, index) = toe;
@@ -110,6 +114,7 @@ classdef ActionGroup
                     disp('INTERFERENCE DETECTED')
                     return
                 end
+                self.curr_knuckle = self.curr_knuckle.update();
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                 toes(indexi, 1) = toe;
@@ -120,6 +125,7 @@ classdef ActionGroup
                         disp('INTERFERENCE DETECTED')
                         return
                     end
+                    self.curr_knuckle = self.curr_knuckle.update();
                     [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                     toes(indexi, indexj) = toe;
@@ -131,10 +137,13 @@ classdef ActionGroup
                 end
             end
             self.min_height = self.curr_lca.tip.location(2);
+            self.horizontal_scrub_downwards = self.curr_lca.tip.location(1) - static_lateral_pos;
             if self.max_height - self.min_height < 2
                 disp('NOT ENOUGH VERTICAL WHEEL TRAVEL. WHEEL TRAVEL IS:')
                 disp(self.max_height - self.min_height);
             end
+            disp(self.horizontal_scrub_downwards)
+            disp(self.horizontal_scrub_upwards)
             if plot_on
                 figure
                 hold on
@@ -158,9 +167,11 @@ classdef ActionGroup
         function self = take_shock_step(self, step)
             self = self.calc_rocker_movement(step);
             self.curr_lca = self.calc_xca_movement(self.curr_lca, self.curr_pushrod.inboard_point, self.curr_pushrod.length);
+            self.curr_knuckle.lca_point = self.curr_lca.tip;
             
             self.curr_pushrod.outboard_point = self.curr_lca.tip.location;
             self.curr_uca = self.calc_xca_movement(self.curr_uca, self.curr_knuckle.lca_point.location, self.curr_knuckle.control_arm_dist);
+            self.curr_knuckle.uca_point = self.curr_uca.tip;
         end
         
         function self = take_rack_step(self, step)
@@ -234,7 +245,6 @@ classdef ActionGroup
             new_location = self.find_closer_point(previous_location, p1, p2);
 
             self.curr_knuckle.toe_point = new_location;
-            self.curr_knuckle = self.curr_knuckle.update();
         end
         
         function self = reset_rack(self)
@@ -283,6 +293,21 @@ classdef ActionGroup
             end
             
             res = false;
+        end
+        
+        function IC = calc_instant_center(self)
+            [uca_point, uca_line] = self.curr_uca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            [lca_point, lca_line] = self.curr_lca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            eqns = [uca_line, lca_line, (lca_point - uca_point)];
+            sols = rref(eqns);
+            n = sols(1, 3);
+            IC = uca_point + n * uca_line;
+        end
+        
+        function RC = calc_roll_center(self, IC)
+            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.calc_contact_patch());
+            v = unIC - cp;
+            
         end
     end
 end

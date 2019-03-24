@@ -24,6 +24,8 @@ classdef ActionGroup
         min_height;
         horizontal_scrub_upwards;
         horizontal_scrub_downwards;
+        front_view_plane = Plane([0; 0; 30.5], [0; 0; 1]);
+        side_view_plane = Plane([25; 0; 0], [1; 0; 0]);
     end
    
     methods
@@ -52,6 +54,9 @@ classdef ActionGroup
             assert(isequal(knuckle.lca_point, lca.tip));
             assert(isequal(knuckle.uca_point, uca.tip));
             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
+            
+            IC = self.calc_instant_center()
+            RC = self.calc_roll_center(IC)
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
@@ -291,6 +296,22 @@ classdef ActionGroup
             end
             
             res = false;
+        end
+        
+        function IC = calc_instant_center(self)
+            [uca_point, uca_line] = self.curr_uca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            [lca_point, lca_line] = self.curr_lca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            eqns = [uca_line, lca_line, (lca_point - uca_point)];
+            sols = rref(eqns);
+            n = sols(1, 3);
+            IC = uca_point - n * uca_line;
+        end
+        
+        function RC = calc_roll_center(self, IC)
+            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.calc_contact_patch());
+            v = unit(cp - IC);
+            n = -IC(1) / v(1);
+            RC = IC + n*v;
         end
     end
 end

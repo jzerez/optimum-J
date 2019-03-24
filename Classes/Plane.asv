@@ -92,11 +92,13 @@ classdef Plane
             end
             
             vector = unit(cross(self.normal, plane.normal));
-            m = plane.calc_norm_dist(self.position);
-            w = plane.normal;
-            v = self.project_into_plane(self.position + w) - self.position;
-            n = m / dot(v,w);
-            point = self.position - n*v;
+            
+%             v = cross(plane.normal, vector);
+%             w = cross(self.normal, vector);
+%             eqns = [v, w, (self.position - plane.position)];
+%             sols = rref(eqns);
+%             n = sols(1, 3);
+%             point = plane.position + n * v;
        end
    end
 end

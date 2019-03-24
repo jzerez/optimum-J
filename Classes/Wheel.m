@@ -7,6 +7,7 @@ classdef Wheel
         axial_dists;
         static_camber;
         static_toe;
+        contact_patch;
         
         plane;
     end
@@ -27,6 +28,12 @@ classdef Wheel
             self.axis_point = self.center + self.axis;
             
             self.plane = Plane(self.center, self.axis);
+            self.contact_patch = self.calc_contact_patch();
+        end
+        
+        function pt = calc_contact_patch(self)
+            vec = [0; -1; 0] + self.center;
+            pt = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
         end
         
     end

@@ -56,8 +56,7 @@ function plot_system_3d(varargin)
             
             n_pts = 15;
             C = curr_element.wheel.center;
-            disp('PLOT3D WC IS:')
-            disp(C)
+            disp('
             rs = curr_element.wheel.radii;
             ds = curr_element.wheel.axial_dists;
             rot_axis = curr_element.wheel.axis;

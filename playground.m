@@ -26,9 +26,11 @@ n22 = Node(p22, r);
 n33 = Node(p33, r);
 upper_wishbone = AArm(n33, n22, n11);
 
+wheel = Wheel(-1, -1, [25; 9.88; 30], [], []);
+
 p_inboard_toe = [6.1; 6.75; 30.2];
 p_outboard_toe = [24.39; 6.63; 32.98];
-knuckle = Knuckle(upper_wishbone.tip, lower_wishbone.tip, p_outboard_toe, true);
+knuckle = Knuckle(upper_wishbone.tip, lower_wishbone.tip, p_outboard_toe, true, wheel);
 
 p_pushrod_in = [11.1; 15.0; 27.6];
 p_pushrod_out = p3;

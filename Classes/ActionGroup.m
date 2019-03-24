@@ -76,6 +76,7 @@ classdef ActionGroup
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
             
+            self.curr_knuckle = self.curr_knuckle.update();
             [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
             toes(1) = toe;
             cambers(1) = camber;
@@ -85,6 +86,7 @@ classdef ActionGroup
                     disp('INTERFERENCE DETECTED')
                     return
                 end
+                self.curr_knuckle = self.curr_knuckle.update();
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
                 toes(1, index) = toe;
@@ -110,6 +112,7 @@ classdef ActionGroup
                     disp('INTERFERENCE DETECTED')
                     return
                 end
+                self.curr_knuckle = self.curr_knuckle.update();
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                 toes(indexi, 1) = toe;
@@ -120,6 +123,7 @@ classdef ActionGroup
                         disp('INTERFERENCE DETECTED')
                         return
                     end
+                    self.curr_knuckle = self.curr_knuckle.update();
                     [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
                     
                     toes(indexi, indexj) = toe;
@@ -161,9 +165,11 @@ classdef ActionGroup
         function self = take_shock_step(self, step)
             self = self.calc_rocker_movement(step);
             self.curr_lca = self.calc_xca_movement(self.curr_lca, self.curr_pushrod.inboard_point, self.curr_pushrod.length);
+            self.curr_knuckle.lca_point = self.curr_lca.tip;
             
             self.curr_pushrod.outboard_point = self.curr_lca.tip.location;
             self.curr_uca = self.calc_xca_movement(self.curr_uca, self.curr_knuckle.lca_point.location, self.curr_knuckle.control_arm_dist);
+            self.curr_knuckle.uca_point = self.curr_uca.tip;
         end
         
         function self = take_rack_step(self, step)
@@ -237,7 +243,6 @@ classdef ActionGroup
             new_location = self.find_closer_point(previous_location, p1, p2);
 
             self.curr_knuckle.toe_point = new_location;
-            self.curr_knuckle = self.curr_knuckle.update();
         end
         
         function self = reset_rack(self)

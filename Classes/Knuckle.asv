@@ -43,11 +43,11 @@ classdef Knuckle
             wheel_center_v1 = self.wheel.center - self.lca_point.location;
             wheel_center_v2 = self.wheel.axis_point - self.lca_point.location;
             self.wheel_center_offset1 = [dot(wheel_center_v1, self.axis);...
-                                         dot(wheel_center_v1, unit(axis_normal));...
+                                         dot(wheel_center_v1, axis_normal);...
                                          dot(wheel_center_v1, plane_normal);];
             
             self.wheel_center_offset2 = [dot(wheel_center_v2, self.axis);...
-                                         dot(wheel_center_v2, unit(axis_normal));...
+                                         dot(wheel_center_v2, axis_normal);...
                                          dot(wheel_center_v2, plane_normal);];
                                
         end
@@ -88,18 +88,14 @@ classdef Knuckle
             toe_to_lca = (self.toe_point - self.lca_point.location);
             axis_normal = unit(toe_to_lca - (self.toe_height*self.axis));
             plane_normal = unit(cross(self.axis, axis_normal));
-            if plane_normal(1) > 0
-                plane_normal = -plane_normal;
-            end
             M = [self.axis, axis_normal, plane_normal];
-            self.wheel.center = sum(self.wheel_center_offset1' .* M, 2) + self.lca_point.location;
-            self.wheel.axis_point = sum(self.wheel_center_offset2' .* M, 2) + self.lca_point.location;
+            self.wheel.center = sum(self.wheel_center_offset1 .* M, 2) + self.lca_point.location;
+            self.wheel.axis_point = sum(self.wheel_center_offset2 .* M, 2) + self.lca_point.location;
             self.wheel.axis = self.wheel.axis_point - self.wheel.center;
-            disp('WHEEL CENTER IS: ')
-            disp(self.wheel.center)
         end
         
         function [camber, toe] = calc_camber_and_toe(self)
+            self = self.update();
             n = self.action_plane.normal;
             if n(1) > 0
                 n = n * -1;

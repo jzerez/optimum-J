@@ -1,4 +1,4 @@
-classdef ActionGroup
+classdef ActionGroup < handle
     properties
         static_rocker;
         static_shock;
@@ -9,6 +9,7 @@ classdef ActionGroup
         static_knuckle;
         action_plane;
         colors = ['r', 'g', 'b', 'k', 'm', 'c'];
+        plot_on = false;
         
         toelink_length;
         
@@ -37,7 +38,7 @@ classdef ActionGroup
             self.static_lca = lca;
             self.static_uca = uca;
             self.static_knuckle = knuckle;
-            self.static_rack = rack; 
+            self.static_rack = Rack(rack.location_node, rack.max_travel, rack.static_length);
             
             self.toelink_length = norm(knuckle.toe_point - rack.endpoint_location);
             
@@ -55,11 +56,12 @@ classdef ActionGroup
             assert(isequal(knuckle.uca_point, uca.tip));
             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
-            IC = self.calc_instant_center()
-            RC = self.calc_roll_center(IC)
+            IC = self.calc_instant_center();
+            RC = self.calc_roll_center(IC);
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
+            self.plot_on = plot_on;
             static_lateral_pos = self.curr_lca.tip.location(1);
             shock_step_size = self.static_shock.total_travel / (num_steps - 1);
             shock_start_step = self.static_shock.total_travel / -2;
@@ -67,86 +69,40 @@ classdef ActionGroup
             rack_start_step = self.static_rack.max_travel / -2;
             shock_steps = linspace(shock_start_step, -shock_start_step, num_steps);
             rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
-            [shock_mesh, rack_mesh] = meshgrid(shock_steps, rack_steps);
             
             self = self.take_shock_step(shock_start_step);
             self.max_height = self.curr_lca.tip.location(2);
             self.horizontal_scrub_upwards = self.curr_lca.tip.location(1) - static_lateral_pos;
-            self = self.take_rack_step(rack_start_step);
-            
-            if self.interference_detection()
-                disp('INTERFERENCE DETECTED')
-                return
-            end
+
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
-            
-            self.curr_knuckle = self.curr_knuckle.update();
-            [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
-            toes(1) = toe;
-            cambers(1) = camber;
-            for index = 2:num_steps
-                self = self.take_rack_step(rack_step_size);
-                if self.interference_detection()
-                    disp('INTERFERENCE DETECTED')
-                    return
-                end
-                self.curr_knuckle = self.curr_knuckle.update();
-                [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
-
-                toes(1, index) = toe;
-                cambers(1, index) = camber;
-                if plot_on
-                    plot_system_3d('g', self.curr_knuckle)
-                end
-            end
             
             if plot_on
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
             end
-            for indexi = 2:num_steps
+
+            [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
+            cambers(1, :) = camber;
+            toes(1, :) = toe;
+            
+            for shock_index = 2:num_steps
                 self = self.take_shock_step(shock_step_size);
                 if plot_on
-%                     waitforbuttonpress;
                     plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
                     drawnow()
                 end
-                self = self.reset_rack();
-                self = self.take_rack_step(rack_start_step);
-                if self.interference_detection()
-                    disp('INTERFERENCE DETECTED')
-                    return
-                end
-                self.curr_knuckle = self.curr_knuckle.update();
-                [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
-                    
-                toes(indexi, 1) = toe;
-                cambers(indexi, 1) = camber;
-                for indexj = 2:num_steps
-                    self = self.take_rack_step(rack_step_size);
-                    if self.interference_detection()
-                        disp('INTERFERENCE DETECTED')
-                        return
-                    end
-                    self.curr_knuckle = self.curr_knuckle.update();
-                    [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
-                    
-                    toes(indexi, indexj) = toe;
-                    cambers(indexi, indexj) = camber;
-                    if plot_on
-                        plot_system_3d('g', self.curr_knuckle)
-%                       waitforbuttonpress;
-                    end
-                end
+                [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
+                toes(shock_index, :) = toe;
+                cambers(shock_index, :) = camber;
             end
             self.min_height = self.curr_lca.tip.location(2);
             self.horizontal_scrub_downwards = self.curr_lca.tip.location(1) - static_lateral_pos;
-            if self.max_height - self.min_height < 2
-                disp('NOT ENOUGH VERTICAL WHEEL TRAVEL. WHEEL TRAVEL IS:')
-                disp(self.max_height - self.min_height);
-            end
-            disp(self.horizontal_scrub_downwards)
-            disp(self.horizontal_scrub_upwards)
+%             if self.max_height - self.min_height < 2
+%                 disp('NOT ENOUGH VERTICAL WHEEL TRAVEL. WHEEL TRAVEL IS:')
+%                 disp(self.max_height - self.min_height);
+%             end
+%             disp(self.horizontal_scrub_downwards)
+%             disp(self.horizontal_scrub_upwards)
             if plot_on
                 figure
                 hold on
@@ -165,10 +121,12 @@ classdef ActionGroup
                 ylabel('Shock Displacement From Static (in)')
                 
             end
+            self.take_shock_step(-shock_step_size * (num_steps - 1) - shock_start_step);
+            self.reset_rack();
         end
         
         function self = take_shock_step(self, step)
-            self = self.calc_rocker_movement(step);
+            self.calc_rocker_movement(step);
             self.curr_lca = self.calc_xca_movement(self.curr_lca, self.curr_pushrod.inboard_point, self.curr_pushrod.length);
             self.curr_knuckle.lca_point = self.curr_lca.tip;
             
@@ -177,12 +135,12 @@ classdef ActionGroup
             self.curr_knuckle.uca_point = self.curr_uca.tip;
         end
         
-        function self = take_rack_step(self, step)
-            self.curr_rack = self.curr_rack.calc_new_endpoint(step);
-            self = self.calc_knuckle_rotation();
+        function take_rack_step(self, step)
+            self.curr_rack.calc_new_endpoint(step);
+            self.calc_knuckle_rotation();
         end
         
-        function self = calc_rocker_movement(self, step)
+        function calc_rocker_movement(self, step)
             prev_location = self.curr_shock.outboard_point;
             shock_radius = self.curr_shock.curr_length + step;
             shock_center = self.curr_shock.inboard_node.location;
@@ -204,7 +162,7 @@ classdef ActionGroup
             old_rocker_pos = unit(prev_location - self.curr_rocker.pivot_point);
             theta = -acosd(dot(old_rocker_pos, new_rocker_pos));
 
-            self.curr_rocker = self.curr_rocker.rotate(theta, new_location);
+            self.curr_rocker.rotate(theta, new_location);
             self.curr_shock = self.curr_shock.new_outboard_point(new_location);
             self.curr_pushrod.inboard_point = self.curr_rocker.control_arm_point;
         end
@@ -227,6 +185,30 @@ classdef ActionGroup
             assert(abs(norm(new_location - anchor_location) - anchor_dist) < 1e-8);
         end
         
+        function [toes, cambers] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
+            self.reset_rack();
+            self.take_rack_step(rack_start_step);
+            self.interference_detection(1);
+            toes = zeros(1,num_steps);
+            cambers = zeros(1,num_steps);
+            self.curr_knuckle.update();
+            [cambers(1), toes(1)] = self.curr_knuckle.calc_camber_and_toe();
+            
+            for index = 2:num_steps
+                self.take_rack_step(rack_step_size);
+                self.interference_detection(1);
+                    
+                self.curr_knuckle.update();
+                [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
+
+                toes(index) = toe;
+                cambers(index) = camber;
+                if self.plot_on
+                    plot_system_3d('g', self.curr_knuckle)
+                end
+            end
+        end
+        
         function point = find_closer_point(self, point_of_interest, p1, p2)
             dist1 = norm(point_of_interest - p1);
             dist2 = norm(point_of_interest - p2);
@@ -238,24 +220,29 @@ classdef ActionGroup
             end
         end
         
-        function self = calc_knuckle_rotation(self)
+        function calc_knuckle_rotation(self)
             previous_location = self.curr_knuckle.toe_point;
-            self.curr_knuckle = self.curr_knuckle.update_toe_plane();
-            k = self.curr_knuckle;
+            self.curr_knuckle.update_toe_plane();
+            
+            
+            toe_center = self.curr_knuckle.toe_center;
+            toe_radius = self.curr_knuckle.toe_radius;
+            toe_plane = self.curr_knuckle.toe_plane;
+            
             [p1, p2] = calc_sphere_circle_int(self.curr_rack.endpoint_location, self.toelink_length,...
-                                              k.toe_center, k.toe_radius, k.toe_plane);
+                                              toe_center, toe_radius, toe_plane);
             
             new_location = self.find_closer_point(previous_location, p1, p2);
 
             self.curr_knuckle.toe_point = new_location;
         end
         
-        function self = reset_rack(self)
+        function reset_rack(self)
             self.curr_rack.endpoint_location = self.static_rack.endpoint_location;
-            self = self.calc_knuckle_rotation();
+            self.calc_knuckle_rotation();
         end
         
-        function res = interference_detection(self)
+        function res = interference_detection(self, debug)
             res = true;
             r = 0.3;
             % Check for toe-link lca interference
@@ -295,7 +282,41 @@ classdef ActionGroup
                 return;
             end
             
+            for index = 1:length(self.curr_knuckle.wheel.radii)
+                w = self.curr_knuckle.wheel;
+                wr = w.radii(index);
+                c = w.center + w.axial_dists(index) * w.axis;
+                % Check for toe link interference
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                            self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r)
+                    return;
+                end
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                            self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r)
+                    return;
+                end
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                            self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r)
+                    return;
+                end
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                            self.curr_uca.endpoints(1).location, self.curr_uca.tip.location, r)
+                    return;
+                end
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                            self.curr_uca.endpoints(2).location, self.curr_uca.tip.location, r)
+                    return;
+                end
+                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                                          self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                    return;
+                end
+            end
+            
             res = false;
+            if debug && res
+                disp('INTERFERENCE DETECTED')
+            end
         end
         
         function IC = calc_instant_center(self)

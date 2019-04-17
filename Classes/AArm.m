@@ -1,4 +1,4 @@
-classdef AArm
+classdef AArm < handle
     properties
         tip;
         endpoints;
@@ -19,7 +19,7 @@ classdef AArm
 
             self.tip = tip_point;
             self.endpoints = [node1, node2];
-            self = self.update();
+            self.update();
             
         end 
 
@@ -48,7 +48,7 @@ classdef AArm
             end
         end
         
-        function self = update(self)
+        function update(self)
             tip_loc = self.tip.location;
             endpoints_loc = [self.endpoints(1).location, self.endpoints(2).location];
             self.static_plane = Plane(tip_loc, self.endpoints(1).location, self.endpoints(2).location);

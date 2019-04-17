@@ -1,4 +1,5 @@
 addpath Classes
+
 clf
 bounding = [-1, -1, -1, -1,  1,  1,  1,  1;...
             -1, -1,  1,  1, -1, -1,  1,  1;...
@@ -20,6 +21,8 @@ lower_wishbone = AArm(n3, n2, n1);
 
 p11 = [9.3; 12.7; 36.5];
 p22 = [9.2; 12.5; 25.7];
+
+
 p33 = [24.0; 12.2; 30.3];
 n11 = Node(p11, r);
 n22 = Node(p22, r);
@@ -64,14 +67,21 @@ plot_system_3d('y', rocker, pushrod, knuckle)
 plot_system_3d('k', rack)
  
 tic
-for iter = 1:1
+for iter = 1:5000
     hold on
-    ag.perform_sweep(6, 1);
+    ag.perform_sweep(6, 0);
 end
 toc
 % 50000 simulations = 72 seconds as of 3/9/19 (Shock Sweep only)
 % 5000 Simulations = 120 seconds as of 3/19/19 (Shock and Rack Sweep)
 % 5000 Simulations = 212 seconds as of 3/23/19 (shock, and rack sweep, 6x6, line
 % interference detection)
-
-
+% 5000 Simulations = 367 seconds as of 3/31/19 (shock, rack sweep, 6x6,
+% line and circle interference detection, IC, RC, wheel travel, some object optimization,
+% printing)
+% 5000 Simulations = 261 seconds as of 3/31/19 (shock, rack sweep, 6x6,
+% line and circle interference detection, IC, RC, wheel travel, some object optimization,
+% less printing)
+% 5000 Simulations = 234 seconds as of 4/16/19 (shock, rack sweep, 6x6,
+% line and circle interference detection, IC, RC, wheel travel, better object
+% optimization)

@@ -1,4 +1,4 @@
-classdef Rocker
+classdef Rocker < handle
     properties
         pivot_point;
         shock_point;
@@ -47,7 +47,7 @@ classdef Rocker
             self.rotation_direction = 1;
         end
         
-        function self = rotate(self, thetad, new_shock_point)
+        function rotate(self, thetad, new_shock_point)
             axis = self.plane.normal;
             centered_points = self.ordered_points - self.pivot_point;
             angled = thetad / 2 * self.rotation_direction;
@@ -64,7 +64,7 @@ classdef Rocker
                 if norm(self.shock_point - new_shock_point) > 0.0001
                     disp('SWITCHING ROTATION')
                     self.rotation_direction = -self.rotation_direction;
-                    self = self.rotate(thetad * 2, NaN);
+                    self.rotate(thetad * 2, NaN);
                 end
             end
             

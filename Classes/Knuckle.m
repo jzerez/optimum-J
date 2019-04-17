@@ -1,4 +1,4 @@
-classdef Knuckle
+classdef Knuckle < handle
     properties
         uca_point;
         lca_point;
@@ -62,7 +62,7 @@ classdef Knuckle
             camber = atan2d(self.axis(1), self.axis(2)) + self.camber_offset;
         end
         
-        function self = update_toe_plane(self)
+        function update_toe_plane(self)
             self.axis = unit(self.uca_point.location - self.lca_point.location);
             self.toe_center = self.toe_height * self.axis + self.lca_point.location;
             self.toe_plane = Plane(self.toe_center, self.axis);
@@ -83,7 +83,7 @@ classdef Knuckle
 %             quiver3(self.toe_center(1), self.toe_center(2), self.toe_center(3), toe_lever(1), toe_lever(2), toe_lever(3), 'r');
         end
         
-        function self = update(self)
+        function update(self)
             self.action_plane = Plane(self.uca_point.location, self.lca_point.location, self.toe_point);
             toe_to_lca = (self.toe_point - self.lca_point.location);
             axis_normal = unit(toe_to_lca - (self.toe_height*self.axis));
@@ -95,8 +95,6 @@ classdef Knuckle
             self.wheel.center = sum(self.wheel_center_offset1' .* M, 2) + self.lca_point.location;
             self.wheel.axis_point = sum(self.wheel_center_offset2' .* M, 2) + self.lca_point.location;
             self.wheel.axis = self.wheel.axis_point - self.wheel.center;
-            disp('WHEEL CENTER IS: ')
-            disp(self.wheel.center)
         end
         
         function [camber, toe] = calc_camber_and_toe(self)
@@ -121,8 +119,6 @@ classdef Knuckle
             x = [-1;0];
             camber = acosd(dot(x, camber_proj_v)) * camber_direction;
             toe = acosd(dot(x, toe_proj_v)) * toe_direction;
-
-            
         end
         
         

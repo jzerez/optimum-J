@@ -8,6 +8,10 @@ classdef node_handler < handle
             self.value = value;
             
         end
+        
+        function task(self, x)
+            self.value = self.value + x;
+        end
     end
     
 end

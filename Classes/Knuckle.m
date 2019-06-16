@@ -1,14 +1,14 @@
 classdef Knuckle < handle
     properties
-        uca_point;
-        lca_point;
+        pca_point;
+        aca_point;
         toe_point;
         axis;
         toe_radius;
         toe_height;
         toe_center;
         control_arm_dist;
-        lca_actuated;
+        aca_actuated;
         toe_plane;
         action_plane; 
         
@@ -18,30 +18,30 @@ classdef Knuckle < handle
     end
     
     methods
-        function self = Knuckle(uca_point, lca_point, toe_point, lca_actuated, wheel)
-            self.uca_point = uca_point;
-            self.lca_point = lca_point;
+        function self = Knuckle(pca_point, aca_point, toe_point, aca_actuated, wheel)
+            self.pca_point = pca_point;
+            self.aca_point = aca_point;
             self.toe_point = toe_point;
             
             self.wheel = wheel;
             
-            self.axis = unit(uca_point.location - lca_point.location);
+            self.axis = unit(pca_point.location - aca_point.location);
             
-            toe_to_lca = (toe_point - self.lca_point.location);
-            self.toe_height = dot(toe_to_lca, self.axis);
-            self.toe_center = self.toe_height * self.axis + self.lca_point.location;
-            axis_normal = toe_to_lca - (self.toe_height*self.axis);
+            toe_to_aca = (toe_point - self.aca_point.location);
+            self.toe_height = dot(toe_to_aca, self.axis);
+            self.toe_center = self.toe_height * self.axis + self.aca_point.location;
+            axis_normal = toe_to_aca - (self.toe_height*self.axis);
             self.toe_radius = norm(axis_normal);
             plane_normal = cross(unit(axis_normal), self.axis);
             self.toe_plane = Plane(self.toe_center, self.axis);
             
-            self.control_arm_dist = norm(uca_point.location - lca_point.location);
-            self.lca_actuated = lca_actuated;
+            self.control_arm_dist = norm(pca_point.location - aca_point.location);
+            self.aca_actuated = aca_actuated;
             
-            self.action_plane = Plane(uca_point.location, lca_point.location, toe_point);
+            self.action_plane = Plane(pca_point.location, aca_point.location, toe_point);
             
-            wheel_center_v1 = self.wheel.center - self.lca_point.location;
-            wheel_center_v2 = self.wheel.axis_point - self.lca_point.location;
+            wheel_center_v1 = self.wheel.center - self.aca_point.location;
+            wheel_center_v2 = self.wheel.axis_point - self.aca_point.location;
             self.wheel_center_offset1 = [dot(wheel_center_v1, self.axis);...
                                          dot(wheel_center_v1, unit(axis_normal));...
                                          dot(wheel_center_v1, plane_normal);];
@@ -53,18 +53,18 @@ classdef Knuckle < handle
         end
         
         function res = valid_length(self)
-            dist = norm(self.uca_point.location - self.lca_point.location);
+            dist = norm(self.pca_point.location - self.aca_point.location);
             res = (abs(dist - self.control_arm_dist) < 1e-8);
         end
         
         function camber = calc_camber(self)
-            self.axis = unit(self.uca_point.location - self.lca_point.location);
+            self.axis = unit(self.pca_point.location - self.aca_point.location);
             camber = atan2d(self.axis(1), self.axis(2)) + self.camber_offset;
         end
         
         function update_toe_plane(self)
-            self.axis = unit(self.uca_point.location - self.lca_point.location);
-            self.toe_center = self.toe_height * self.axis + self.lca_point.location;
+            self.axis = unit(self.pca_point.location - self.aca_point.location);
+            self.toe_center = self.toe_height * self.axis + self.aca_point.location;
             self.toe_plane = Plane(self.toe_center, self.axis);
         end
         
@@ -84,16 +84,16 @@ classdef Knuckle < handle
         end
         
         function update(self)
-            self.action_plane = Plane(self.uca_point.location, self.lca_point.location, self.toe_point);
-            toe_to_lca = (self.toe_point - self.lca_point.location);
-            axis_normal = unit(toe_to_lca - (self.toe_height*self.axis));
+            self.action_plane = Plane(self.pca_point.location, self.aca_point.location, self.toe_point);
+            toe_to_aca = (self.toe_point - self.aca_point.location);
+            axis_normal = unit(toe_to_aca - (self.toe_height*self.axis));
             plane_normal = unit(cross(self.axis, axis_normal));
             if plane_normal(1) > 0
                 plane_normal = -plane_normal;
             end
             M = [self.axis, axis_normal, plane_normal];
-            self.wheel.center = sum(self.wheel_center_offset1' .* M, 2) + self.lca_point.location;
-            self.wheel.axis_point = sum(self.wheel_center_offset2' .* M, 2) + self.lca_point.location;
+            self.wheel.center = sum(self.wheel_center_offset1' .* M, 2) + self.aca_point.location;
+            self.wheel.axis_point = sum(self.wheel_center_offset2' .* M, 2) + self.aca_point.location;
             self.wheel.axis = self.wheel.axis_point - self.wheel.center;
         end
         

@@ -25,7 +25,7 @@ classdef Plane
                 normal = cross(line1.axis, line2.axis);
                 self.normal = normal / norm(normal);
            else
-               % Defined by a normal vector and a position
+               % Defined by a normal vector and a point
                self.position = varargin{1};
                self.normal = varargin{2};
            end

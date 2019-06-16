@@ -49,6 +49,13 @@ classdef Region
             end
         end
         
+        function point = generate_starting_point(self)
+            x = self.min_x + abs(self.max_x - self.min_x) * rand();
+            y = self.min_y + abs(self.max_y - self.min_y) * rand();
+            z = self.min_z + abs(self.max_z - self.min_z) * rand();
+            point = [x; y; z];
+        end
+        
         
     end
     

@@ -1,12 +1,6 @@
 classdef ActionGroup < handle
     properties
-        static_rocker;
-        static_shock;
-        static_pushrod;
-        static_lca;
-        static_uca;
         static_rack;
-        static_knuckle;
         action_plane;
         colors = ['r', 'g', 'b', 'k', 'm', 'c'];
         plot_on = false;
@@ -16,27 +10,43 @@ classdef ActionGroup < handle
         curr_rocker;
         curr_shock;
         curr_pushrod;
-        curr_lca;
-        curr_uca;
+        curr_aca;
+        curr_pca;
         curr_rack;
         curr_knuckle;
         
-        max_height;
-        min_height;
-        horizontal_scrub_upwards;
-        horizontal_scrub_downwards;
+        front_suspension;
+        
+        % Static Characteristics (scalars)
+        IC;
+        RC;
+        spindle_length;
+        kingpin_angle;
+        scrub_radius;
+        anti_percentage;
+        FVSA_length;
+        SVSA_length;
+        mechanical_trail;
+        
+        % Dynamic Characteristics (vectors/matrices)
+        bump_steer;
+        scrub;
+        wheel_centers;
+        cambers;
+        
+        
         front_view_plane = Plane([0; 0; 30.5], [0; 0; 1]);
         side_view_plane = Plane([25; 0; 0], [1; 0; 0]);
     end
    
     methods
-        function self = ActionGroup(rocker, shock, pushrod, lca, uca, knuckle, rack)
+        function self = ActionGroup(rocker, shock, pushrod, aca, pca, knuckle, rack)
             % Action group meant for sweeping the range of the suspension.
             self.static_rocker = rocker;
             self.static_shock = shock;
             self.static_pushrod = pushrod;
-            self.static_lca = lca;
-            self.static_uca = uca;
+            self.static_aca = aca;
+            self.static_pca = pca;
             self.static_knuckle = knuckle;
             self.static_rack = Rack(rack.location_node, rack.max_travel, rack.static_length);
             
@@ -45,24 +55,24 @@ classdef ActionGroup < handle
             self.curr_rocker = rocker;
             self.curr_shock = shock;
             self.curr_pushrod = pushrod;
-            self.curr_lca = lca;
-            self.curr_uca = uca;
+            self.curr_aca = aca;
+            self.curr_pca = pca;
             self.curr_knuckle = knuckle;
             self.curr_rack = rack; 
             self.action_plane = rocker.plane;
             
             assert(isequal(shock.outboard_point, rocker.shock_point));
-            assert(isequal(knuckle.lca_point, lca.tip));
-            assert(isequal(knuckle.uca_point, uca.tip));
-            assert(rocker.plane.is_in_plane(shock.inboard_node.location));
+            assert(isequal(knuckle.aca_point, aca.tip));
+            assert(isequal(knuckle.pca_point, pca.tip));
+%             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
-            IC = self.calc_instant_center();
-            RC = self.calc_roll_center(IC);
+            self.IC = self.calc_instant_center();
+            self.RC = self.calc_roll_center(self.IC);
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
             self.plot_on = plot_on;
-            static_lateral_pos = self.curr_lca.tip.location(1);
+            static_lateral_pos = self.curr_aca.tip.location(1);
             shock_step_size = self.static_shock.total_travel / (num_steps - 1);
             shock_start_step = self.static_shock.total_travel / -2;
             rack_step_size = self.static_rack.max_travel / (num_steps - 1);
@@ -71,14 +81,12 @@ classdef ActionGroup < handle
             rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
             
             self = self.take_shock_step(shock_start_step);
-            self.max_height = self.curr_lca.tip.location(2);
-            self.horizontal_scrub_upwards = self.curr_lca.tip.location(1) - static_lateral_pos;
-
+           
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
             
             if plot_on
-                plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
+                plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
             end
 
             [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
@@ -88,21 +96,14 @@ classdef ActionGroup < handle
             for shock_index = 2:num_steps
                 self = self.take_shock_step(shock_step_size);
                 if plot_on
-                    plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_lca, self.curr_pushrod, self.curr_uca, self.curr_knuckle);
+                    plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
                     drawnow()
                 end
                 [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
                 toes(shock_index, :) = toe;
                 cambers(shock_index, :) = camber;
             end
-            self.min_height = self.curr_lca.tip.location(2);
-            self.horizontal_scrub_downwards = self.curr_lca.tip.location(1) - static_lateral_pos;
-%             if self.max_height - self.min_height < 2
-%                 disp('NOT ENOUGH VERTICAL WHEEL TRAVEL. WHEEL TRAVEL IS:')
-%                 disp(self.max_height - self.min_height);
-%             end
-%             disp(self.horizontal_scrub_downwards)
-%             disp(self.horizontal_scrub_upwards)
+
             if plot_on
                 figure
                 hold on
@@ -127,12 +128,12 @@ classdef ActionGroup < handle
         
         function self = take_shock_step(self, step)
             self.calc_rocker_movement(step);
-            self.curr_lca = self.calc_xca_movement(self.curr_lca, self.curr_pushrod.inboard_point, self.curr_pushrod.length);
-            self.curr_knuckle.lca_point = self.curr_lca.tip;
+            self.curr_aca = self.calc_xca_movement(self.curr_aca, self.curr_pushrod.inboard_node.location, self.curr_pushrod.length);
+            self.curr_knuckle.aca_point = self.curr_aca.tip;
             
-            self.curr_pushrod.outboard_point = self.curr_lca.tip.location;
-            self.curr_uca = self.calc_xca_movement(self.curr_uca, self.curr_knuckle.lca_point.location, self.curr_knuckle.control_arm_dist);
-            self.curr_knuckle.uca_point = self.curr_uca.tip;
+%             self.curr_pushrod.outboard_node.location = self.curr_aca.pushrod_mount.location;
+            self.curr_pca = self.calc_xca_movement(self.curr_pca, self.curr_knuckle.aca_point.location, self.curr_knuckle.control_arm_dist);
+            self.curr_knuckle.pca_point = self.curr_pca.tip;
         end
         
         function take_rack_step(self, step)
@@ -164,25 +165,31 @@ classdef ActionGroup < handle
 
             self.curr_rocker.rotate(theta, new_location);
             self.curr_shock = self.curr_shock.new_outboard_point(new_location);
-            self.curr_pushrod.inboard_point = self.curr_rocker.control_arm_point;
+            self.curr_pushrod.inboard_node.location = self.curr_rocker.control_arm_point;
         end
         
-        function new_xca = calc_xca_movement(self, xca, anchor_location, anchor_dist)
-            % dummy variable for when knuckle offsets are introduced
-            knuckle_offset = [0;0;0];
-            
-            prev_location = xca.tip.location;
-            
-            [int1, int2] = calc_sphere_circle_int(anchor_location, anchor_dist,...
+        function new_xca = calc_xca_movement(self, xca, ref_point, ref_dist)
+            if xca.active
+                prev_location = xca.pushrod_mount.location;
+                [int1, int2] = calc_sphere_circle_int(ref_point, ref_dist,...
+                                              xca.pushrod_center, xca.pushrod_radius, xca.pushrod_plane);
+                new_location = self.find_closer_point(prev_location, int1, int2);
+                new_xca_pos = unit(new_location - xca.pushrod_center);
+                old_xca_pos = unit(prev_location - xca.pushrod_center);
+                assert(xca.pushrod_plane.is_in_plane(new_xca_pos + xca.pushrod_center));
+                assert(xca.pushrod_plane.is_in_plane(old_xca_pos + xca.pushrod_center));
+            else
+                prev_location = xca.tip.location;
+                [int1, int2] = calc_sphere_circle_int(ref_point, ref_dist,...
                                               xca.effective_center, xca.effective_radius, xca.action_plane);
-            new_location = self.find_closer_point(prev_location, int1, int2);
-            new_xca_pos = unit(new_location - xca.effective_center);
-            old_xca_pos = unit(prev_location - xca.effective_center);
+                new_location = self.find_closer_point(prev_location, int1, int2);
+                new_xca_pos = unit(new_location - xca.effective_center);
+                old_xca_pos = unit(prev_location - xca.effective_center);
+            end
             theta = -acosd(dot(old_xca_pos, new_xca_pos));
-
             new_xca = xca.rotate(theta, new_location);
 
-            assert(abs(norm(new_location - anchor_location) - anchor_dist) < 1e-8);
+            assert(abs(norm(new_location - ref_point) - ref_dist) < 1e-8);
         end
         
         function [toes, cambers] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
@@ -245,40 +252,40 @@ classdef ActionGroup < handle
         function res = interference_detection(self, debug)
             res = true;
             r = 0.3;
-            % Check for toe-link lca interference
+            % Check for toe-link aca interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
-                                      self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r)
+                                      self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
                 return;
             end
-            % Check for toe-link lca interference (second arm)
+            % Check for toe-link aca interference (second arm)
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
-                                      self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r)
+                                      self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
                 return;
             end
             % Check for pushrod toelink interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_point, r,...
-                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                                      self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                 return;
             end
 %             
-%             % Check for pushrod lca interference
-%             if line_line_interference(self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r,...
-%                                       self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+%             % Check for pushrod aca interference
+%             if line_line_interference(self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r,...
+%                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
 %                 return;
 %             end
-%             % Check for pushrod lca interference (second arm)
-%             if line_line_interference(self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r,...
-%                                       self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+%             % Check for pushrod aca interference (second arm)
+%             if line_line_interference(self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r,...
+%                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
 %                 return;
 %             end
-            % Check for pushrod uca interference
-            if line_line_interference(self.curr_uca.endpoints(1).location, self.curr_uca.tip.location, r,...
-                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+            % Check for pushrod pca interference
+            if line_line_interference(self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r,...
+                                      self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                 return;
             end
-            % Check for pushrod uca interference (second arm)
-            if line_line_interference(self.curr_uca.endpoints(2).location, self.curr_uca.tip.location, r,...
-                                      self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+            % Check for pushrod pca interference (second arm)
+            if line_line_interference(self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r,...
+                                      self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                 return;
             end
             
@@ -292,23 +299,23 @@ classdef ActionGroup < handle
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
-                                            self.curr_lca.endpoints(1).location, self.curr_lca.tip.location, r)
+                                            self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
-                                            self.curr_lca.endpoints(2).location, self.curr_lca.tip.location, r)
+                                            self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
-                                            self.curr_uca.endpoints(1).location, self.curr_uca.tip.location, r)
+                                            self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r)
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
-                                            self.curr_uca.endpoints(2).location, self.curr_uca.tip.location, r)
+                                            self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r)
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
-                                          self.curr_pushrod.inboard_point, self.curr_pushrod.outboard_point, r)
+                                          self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                     return;
                 end
             end
@@ -320,12 +327,12 @@ classdef ActionGroup < handle
         end
         
         function IC = calc_instant_center(self)
-            [uca_point, uca_line] = self.curr_uca.static_plane.calc_plane_plane_int(self.front_view_plane);
-            [lca_point, lca_line] = self.curr_lca.static_plane.calc_plane_plane_int(self.front_view_plane);
-            eqns = [uca_line, lca_line, (lca_point - uca_point)];
+            [pca_point, pca_line] = self.curr_pca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            [aca_point, aca_line] = self.curr_aca.static_plane.calc_plane_plane_int(self.front_view_plane);
+            eqns = [pca_line, aca_line, (aca_point - pca_point)];
             sols = rref(eqns);
             n = sols(1, 3);
-            IC = uca_point - n * uca_line;
+            IC = pca_point - n * pca_line;
         end
         
         function RC = calc_roll_center(self, IC)

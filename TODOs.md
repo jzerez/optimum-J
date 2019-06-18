@@ -12,6 +12,8 @@
 * Change how the rack is swept back and forth
 * Need to decrease runtime by a factor of 10 to be really useful, oof
 * Examine rack sweeping code. Introduced largest performance drop
+* solve for a-arm rotation angle direction beforehand to avoid having to recalculate rotation. 
+* probably get rid of quatternion rotations in rocker and a-arm in favor of simpler stuff (rotation constrained to a plane)
 
 ## Useful Features
 * Saving barebones information about suspensions along the way to trace optimization path

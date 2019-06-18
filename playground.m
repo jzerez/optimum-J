@@ -67,7 +67,7 @@ plot_system_3d('y', lower_wishbone, upper_wishbone, knuckle)
 plot_system_3d('y', n3, n33)
 plot_system_3d('y', rocker, pushrod, knuckle)
 plot_system_3d('k', rack)
- 
+
 tic
 for iter = 1:1
     hold on

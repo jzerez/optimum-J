@@ -1,12 +1,12 @@
 classdef ActionGroup < handle
     properties
+        static_rack;
         action_plane;
         colors = ['r', 'g', 'b', 'k', 'm', 'c'];
         plot_on = false;
         
         toelink_length;
         
-        static_rack;
         curr_rocker;
         curr_shock;
         curr_pushrod;
@@ -18,6 +18,8 @@ classdef ActionGroup < handle
         front_suspension;
         
         % Static Characteristics (scalars)
+        static_char = struct('IC', NaN,... 
+                             'RC', NaN,
         IC;
         RC;
         spindle_length;
@@ -67,15 +69,14 @@ classdef ActionGroup < handle
         function self = perform_sweep(self, num_steps, plot_on)
             self.plot_on = plot_on;
             static_lateral_pos = self.curr_aca.tip.location(1);
-            shock_step_size = self.static_shock.total_travel / (num_steps - 1);
-            shock_start_step = self.static_shock.total_travel / -2;
+            shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
+            shock_start_step = self.curr_shock.total_travel / -2;
             rack_step_size = self.static_rack.max_travel / (num_steps - 1);
             rack_start_step = self.static_rack.max_travel / -2;
             shock_steps = linspace(shock_start_step, -shock_start_step, num_steps);
             rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
             
             self = self.take_shock_step(shock_start_step);
-%             self.max_height = self.curr_aca.tip.location(2);
            
             cambers = zeros(num_steps);
             toes = zeros(num_steps);

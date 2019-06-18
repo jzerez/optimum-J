@@ -18,22 +18,19 @@ classdef ActionGroup < handle
         front_suspension;
         
         % Static Characteristics (scalars)
-        IC;
-        RC;
-        spindle_length;
-        kingpin_angle;
-        scrub_radius;
-        anti_percentage;
-        FVSA_length;
-        SVSA_length;
-        mechanical_trail;
+        static_char = struct('IC', NaN,... 
+                             'RC', NaN,...
+                             'spindle_length', NaN,...
+                             'kingpin_angle', NaN,...
+                             'scrub_radius', NaN,...
+                             'anti_percentage', NaN,...
+                             'FVSA_length', NaN,...
+                             'SVSA_length', NaN,...
+                             'mechanical_trail', NaN);
         
         % Dynamic Characteristics (vectors/matrices)
-        bump_steer;
-        scrub;
-        wheel_centers;
-        cambers;
-        
+        dyn_char = struct('wheel_centers', NaN,...
+                          'wheel_orientations', NaN);
         
         front_view_plane = Plane([0; 0; 30.5], [0; 0; 1]);
         side_view_plane = Plane([25; 0; 0], [1; 0; 0]);
@@ -42,12 +39,6 @@ classdef ActionGroup < handle
     methods
         function self = ActionGroup(rocker, shock, pushrod, aca, pca, knuckle, rack)
             % Action group meant for sweeping the range of the suspension.
-            self.static_rocker = rocker;
-            self.static_shock = shock;
-            self.static_pushrod = pushrod;
-            self.static_aca = aca;
-            self.static_pca = pca;
-            self.static_knuckle = knuckle;
             self.static_rack = Rack(rack.location_node, rack.max_travel, rack.static_length);
             
             self.toelink_length = norm(knuckle.toe_point - rack.endpoint_location);
@@ -66,21 +57,21 @@ classdef ActionGroup < handle
             assert(isequal(knuckle.pca_point, pca.tip));
 %             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
-            self.IC = self.calc_instant_center();
-            self.RC = self.calc_roll_center(self.IC);
+            self.static_char.IC = self.calc_instant_center();
+            self.static_char.RC = self.calc_roll_center(self.static_char.IC);
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
             self.plot_on = plot_on;
             static_lateral_pos = self.curr_aca.tip.location(1);
-            shock_step_size = self.static_shock.total_travel / (num_steps - 1);
-            shock_start_step = self.static_shock.total_travel / -2;
+            shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
+            shock_start_step = self.curr_shock.total_travel / -2;
             rack_step_size = self.static_rack.max_travel / (num_steps - 1);
             rack_start_step = self.static_rack.max_travel / -2;
             shock_steps = linspace(shock_start_step, -shock_start_step, num_steps);
             rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
             
-            self = self.take_shock_step(shock_start_step);
+            self.take_shock_step(shock_start_step);
            
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
@@ -94,7 +85,7 @@ classdef ActionGroup < handle
             toes(1, :) = toe;
             
             for shock_index = 2:num_steps
-                self = self.take_shock_step(shock_step_size);
+                self.take_shock_step(shock_step_size);
                 if plot_on
                     plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
                     drawnow()
@@ -126,7 +117,7 @@ classdef ActionGroup < handle
             self.reset_rack();
         end
         
-        function self = take_shock_step(self, step)
+        function take_shock_step(self, step)
             self.calc_rocker_movement(step);
             self.curr_aca = self.calc_xca_movement(self.curr_aca, self.curr_pushrod.inboard_node.location, self.curr_pushrod.length);
             self.curr_knuckle.aca_point = self.curr_aca.tip;

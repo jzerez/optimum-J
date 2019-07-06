@@ -56,7 +56,5 @@ function fitness = calc_fitness(static_char, dyn_char, desired_static_char, desi
     dynamic_error = dynamic_error + scrub_error;
     
     fitness = dynamic_error + static_error;
-    
-    
 
 end

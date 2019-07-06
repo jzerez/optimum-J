@@ -46,6 +46,7 @@ function plot_system_3d(varargin)
             v = [curr_element.ordered_points, curr_element.pivot_point];
             plot3(v(1, :), v(2, :), v(3, :), color)
             scatter3(v(1, :), v(2, :), v(3, :), 20, 'filled', color);
+            scatter3(v(1, end), v(2, end), v(3, end), 'x', color)
         end
         
         if isa(curr_element, 'Shock')

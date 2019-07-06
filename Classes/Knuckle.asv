@@ -99,9 +99,10 @@ classdef Knuckle < handle
         end
         
         function [camber, toe] = calc_camber_and_toe(self)
+            c = self.wheel.center;
             n = self.wheel.plane.normal;
-            toe_vec = unit([1;0;0]*(-dot(n, [0;0;1]) / dot(n, [1;0;0])) + [0;0;1]);
-            camber_vec = unit([1;0;0]*(-dot(n, [0;1;0]) / dot(n, [1;0;0])) + [0;1;0]);
+            toe_vec = [1;0;0]*(-dot(n, [0;0;1]) / dot(n, [1;0;0
+            camber_vec = (c+[1;0;0])*(-dot(n, c+[0;1;0] / dot(n, [1;0;0]))) + [0;1;0] - c
             if toe_vec(1) < 0
                 toe_direction = 1;
             else
@@ -114,6 +115,8 @@ classdef Knuckle < handle
             end
             toe = acosd(dot(toe_vec, [0;0;1])) * toe_direction;
             camber = acosd(dot(camber_vec, [0;1;0])) * camber_direction;
+            
+            
         end
         
         

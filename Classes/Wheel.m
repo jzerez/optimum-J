@@ -24,6 +24,7 @@ classdef Wheel
             h = cosd(static_camber);
             x = cosd(static_toe) / h;
             z = sind(static_toe) / h;
+            % Axis perpendicular to the plane of the wheel
             self.axis = unit([x; y; z]);
             self.axis_point = self.center + self.axis;
             

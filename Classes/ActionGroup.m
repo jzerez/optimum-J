@@ -59,6 +59,7 @@ classdef ActionGroup < handle
             
             self.static_char.IC = self.calc_instant_center();
             self.static_char.RC = self.calc_roll_center(self.static_char.IC);
+            self.curr_knuckle.calc_camber_and_toe();
         end
         
         function self = perform_sweep(self, num_steps, plot_on)
@@ -183,7 +184,7 @@ classdef ActionGroup < handle
             assert(abs(norm(new_location - ref_point) - ref_dist) < 1e-8);
         end
         
-        function [toes, cambers] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
+        function [cambers, toes] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
             self.reset_rack();
             self.take_rack_step(rack_start_step);
             self.interference_detection(1);

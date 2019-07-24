@@ -1,15 +1,15 @@
 classdef Wheel
     properties
-        center;
-        axis;
-        axis_point;
-        radii;
-        axial_dists;
-        static_camber;
-        static_toe;
-        contact_patch;
+        center;         % Wheel center
+        axis;           % Axis of wheel
+        axis_point;     % An arbitrary point on the wheel axis
+        radii;          % Radii describing contours of the wheel
+        axial_dists;    % axial dists of each radii from the wheel center
+        static_camber;  % static camber. Negative is negative camber (lean in)
+        static_toe;     % static toe. Positive is toe in
+        contact_patch;  % Location of the contact patch 
         
-        plane;
+        plane;          % Wheel plane. Normal to axis, coincident with center
     end
     
     methods
@@ -17,13 +17,14 @@ classdef Wheel
             self.static_camber = static_camber;
             self.static_toe = static_toe;
             assert(numel(radii) == numel(axial_dists));
-            self.radii = [wheel_center(2), radii];
-            self.axial_dists = [0, axial_dists];
+            self.radii = radii;
+            self.axial_dists = axial_dists;
             self.center = wheel_center;
             y = sind(static_camber);
             h = cosd(static_camber);
             x = cosd(static_toe) / h;
             z = sind(static_toe) / h;
+            
             % Axis perpendicular to the plane of the wheel
             self.axis = unit([x; y; z]);
             self.axis_point = self.center + self.axis;

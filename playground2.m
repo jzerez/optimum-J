@@ -1,5 +1,5 @@
 addpath Classes
-
+close all
 clf
 bounding = [-1, -1, -1, -1,  1,  1,  1,  1;...
             -1, -1,  1,  1, -1, -1,  1,  1;...
@@ -35,7 +35,7 @@ n22 = Node(p22, r);
 n33 = Node(p33, r);
 upper_wishbone = AArm(n33, n22, n11, n_pushrod_out);
 
-wheel = Wheel(-1, -1, [25; 9.88; 30], [], []);
+wheel = Wheel(-0.75, -1, [25; 9.88; 30], [], []);
 
 p_inboard_toe = [8.34; 4.5; 25.67];
 p_outboard_toe = [25.07; 8.98; 26.52];

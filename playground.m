@@ -5,7 +5,7 @@ bounding = [-1, -1, -1, -1,  1,  1,  1,  1;...
             -1, -1,  1,  1, -1, -1,  1,  1;...
             -1,  1, -1,  1, -1,  1, -1,  1;];
 p4 = [23.2; 6.73; 30.7];
-bounding = bounding * 200;
+bounding = bounding * 50;
 r = Region(bounding);
 bounding2 = p4 + (bounding * 1.2);
 r2 = Region(bounding2);
@@ -67,7 +67,7 @@ plot_system_3d('y', rocker, pushrod, knuckle)
 plot_system_3d('k', rack)
 
 tic
-for iter = 1:1
+for iter = 1:0
     hold on
     [static_char, ~] = ag.perform_sweep(6, 1);
 end

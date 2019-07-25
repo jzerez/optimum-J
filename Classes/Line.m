@@ -1,4 +1,4 @@
-classdef Line
+classdef Line < handle
     properties
         length;
         axis;
@@ -8,12 +8,9 @@ classdef Line
     
     methods
         function self = Line(inboard_node, outboard_node)
-            axis = inboard_node.location - outboard_node.location;
-            self.length = norm(axis);
-            self.axis = unit(axis);
-            assert(self.length > 0);
             self.inboard_node = inboard_node;
             self.outboard_node = outboard_node;
+            self.update();
         end
         
         function res = valid_length(self)
@@ -23,6 +20,13 @@ classdef Line
             else
                 res = false;
             end
+        end
+        
+        function update(self)
+            axis = self.inboard_node.location - self.outboard_node.location;
+            self.length = norm(axis);
+            self.axis = unit(axis);
+            assert(self.length > 0);
         end
     end
 end

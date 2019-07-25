@@ -71,23 +71,10 @@ classdef ActionGroup < handle
 %             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
             c = self.curr_knuckle.wheel.center;
-            cp = self.curr_knuckle.wheel.contact_patch;
             self.front_view_plane = Plane([0; 0; c(3)], [0; 0; 1]);
             self.side_view_plane = Plane([c(1); 0; 0], [1; 0; 0]);
-            IC = self.calc_instant_center();
-            self.static_char.RCH = self.calc_roll_center_height(IC);
-            self.static_char.FVSA = abs(IC(1)-cp(1));
             
-           
-            [angle, mechanical_trail, scrub_radius, spindle_length] = self.calc_kingpin(c, cp);
-            self.static_char.kingpin_angle = angle;
-            self.static_char.mechanical_trail = mechanical_trail;
-            self.static_char.scrub_radius = scrub_radius;
-            self.static_char.spindle_length = spindle_length;
-            [SVSA, anti] = self.calc_SVSA_and_anti(c, cp);
-            self.static_char.SVSA = SVSA;
-            self.static_char.anti_percentage = anti;
-            self.curr_knuckle.calc_camber_and_toe();
+            self.calc_static_char();
         end
         
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
@@ -144,7 +131,9 @@ classdef ActionGroup < handle
             end
             self.take_shock_step(-shock_step_size * (num_steps - 1) - shock_start_step);
             self.reset_rack();
-            disp(self.static_char)
+            self.curr_knuckle.update_action_plane();
+            self.curr_knuckle.update_toe_plane();
+            self.calc_static_char();
             static_char = self.static_char;
             dyn_char = [];
         end
@@ -155,7 +144,7 @@ classdef ActionGroup < handle
             self.curr_knuckle.aca_node = self.curr_aca.tip;
             
             self.curr_pushrod.outboard_node.location = self.curr_aca.pushrod_mount.location;
-            self.curr_pca = self.calc_xca_movement(self.curr_pca, self.curr_knuckle.aca_node.location, self.curr_knuckle.kingpin_dist);
+            self.curr_pca = self.calc_xca_movement(self.curr_pca, self.curr_knuckle.aca_node.location, self.curr_knuckle.a_arm_dist);
             self.curr_knuckle.pca_node = self.curr_pca.tip;
         end
         
@@ -197,8 +186,10 @@ classdef ActionGroup < handle
                 [int1, int2] = calc_sphere_circle_int(ref_point, ref_dist,...
                                               xca.pushrod_center, xca.pushrod_radius, xca.pushrod_plane);
                 new_location = find_closer_point(prev_location, int1, int2);
+                
                 new_xca_pos = unit(new_location - xca.pushrod_center);
                 old_xca_pos = unit(prev_location - xca.pushrod_center);
+                
                 assert(xca.pushrod_plane.is_in_plane(new_xca_pos + xca.pushrod_center));
                 assert(xca.pushrod_plane.is_in_plane(old_xca_pos + xca.pushrod_center));
             else
@@ -417,5 +408,33 @@ classdef ActionGroup < handle
             end
         end
         
+        function update_all(self)
+            self.curr_rocker.update();
+            self.curr_pushrod.update();
+            self.curr_aca.update();
+            self.curr_pca.update();
+            self.curr_knuckle.update();
+            self.curr_rack.reset_endpoint();
+            
+        end
+        
+        function calc_static_char(self)
+            c = self.curr_knuckle.wheel.center;
+            cp = self.curr_knuckle.wheel.contact_patch;
+            
+            IC = self.calc_instant_center();
+            self.static_char.RCH = self.calc_roll_center_height(IC);
+            self.static_char.FVSA = abs(IC(1)-cp(1));
+            
+           
+            [angle, mechanical_trail, scrub_radius, spindle_length] = self.calc_kingpin(c, cp);
+            self.static_char.kingpin_angle = angle;
+            self.static_char.mechanical_trail = mechanical_trail;
+            self.static_char.scrub_radius = scrub_radius;
+            self.static_char.spindle_length = spindle_length;
+            [SVSA, anti] = self.calc_SVSA_and_anti(c, cp);
+            self.static_char.SVSA = SVSA;
+            self.static_char.anti_percentage = anti;
+        end
     end
 end

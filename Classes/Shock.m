@@ -3,14 +3,13 @@ classdef Shock
         inboard_node;
         outboard_node;
         action_plane;
-        static_length;
+        static_length = mm_to_in(250);
         curr_length;
         total_travel = mm_to_in(50);
     end
     
     methods
         function self = Shock(inboard_node, outboard_node, action_plane)
-            self.static_length = mm_to_in(250);
             self.action_plane = action_plane;
             self.inboard_node = inboard_node;
             self.outboard_node = outboard_node;

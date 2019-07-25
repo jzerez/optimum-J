@@ -1,4 +1,4 @@
-classdef Optimizer
+classdef Optimizer < handle
     properties
         suspension;
         desired_static_char;
@@ -11,6 +11,10 @@ classdef Optimizer
         static_locations;
         gradients;
         fitnesses;
+        
+        start;
+        expressions;
+        constraints;
     end
     
     methods (Access = public)
@@ -21,11 +25,25 @@ classdef Optimizer
             self.desired_static_char = desired_static_char;
             
             
-            self.get_node_locations()
-            self.get_inequality_constraints()
+            self.start = self.get_node_locations();
+            test = self.start + rand(size(self.start)) * 3 - 1.5;
+%             self.get_fitness(self.start)
+%             finish = self.get_node_locations();
+%             test = self.start + (rand(size(self.start)) * 3 - 1.5);
+%             self.get_fitness(test)
+            
+            [self.expressions, self.constraints] = self.get_inequality_constraints();
+            
             self.static_locations = zeros([3, num_nodes, max_steps+1]);
-            self.fitnesses = zeros([1, max_steps+1]);
+            self.fitnesses = [];
             self.gradients = zeros([num_nodes, max_steps+1]);
+            l = self.ez_optimize(test);
+            self.get_fitness(l)
+            self.get_fitness(self.start)
+        end
+        
+        function l = ez_optimize(self, pos)
+            l = fmincon(@self.get_fitness, pos, self.expressions, self.constraints);
         end
         
         function optimize(self)
@@ -88,9 +106,13 @@ classdef Optimizer
             end
         end
         
-        function fitness = get_fitness(self, num_sweeps)
-            [static_char, dyn_char] = self.suspension.perform_sweep(num_sweeps, 0);
+        function fitness = get_fitness(self, locations)
+            num_sweeps = 3;
+            self.update_locations(locations);
+            [static_char, ~] = self.suspension.perform_sweep(num_sweeps, 0);
             fitness = calc_fitness(static_char, self.desired_static_char, self.static_char_weights);
+            self.fitnesses(end + 1) = fitness;
+            disp(self.fitnesses)
         end
         
         function locations = get_node_locations(self)
@@ -108,23 +130,27 @@ classdef Optimizer
             for index = 1:length(nodes)
                 nodes(index).location = new_locations(:, index);
             end
+            self.suspension.update_all();
         end
         
-        function A = get_inequality_constraints(self)
+        function [expressions, constraints] = get_inequality_constraints(self)
             nodes = self.suspension.node_list;
-            A = zeros([1, 3*length(nodes) + 1]);
-            region_lims = {'max_x', 'min_x', 'max_y', 'min_y', 'max_z',  'min_z'};
-            for index = 1:length(nodes)
+            n = length(nodes);
+            A = zeros([6*n, 3*n+ 1]);
+            region_lims = {'max_x', 'min_x', 'max_y', 'min_y', 'max_z', 'min_z'};
+            for index = 1:n
                 for dimension = 1:3
-                    row = size(A, 1) + 1;
+                    row = (index - 1) * 6 + (dimension - 1) * 2 + 1;
                     col = (index - 1) * 3 + dimension;
-                    limit_index = (index - 1) * 2 + 1;
+                    limit_index = (dimension - 1) * 2 + 1;
                     A(row, col) = 1; 
                     A(row + 1, col) = -1;
-                    A(row, end) = nodes(index).region.(region_lims(limit_index));
-                    A(row + 1, end) = -nodes(index).region.(region_lims(limit_index + 1));
+                    A(row, end) = nodes(index).region.(region_lims{limit_index});
+                    A(row + 1, end) = -nodes(index).region.(region_lims{limit_index + 1});
                 end
             end
+            expressions = A(:, 1:end-1);
+            constraints = A(:, end);
         end
     end
         

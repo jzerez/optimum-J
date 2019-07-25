@@ -15,8 +15,6 @@ classdef Knuckle < handle
         wheel_center_offset1;   % location of wheel center relative to aca using knuckle coordinates
         wheel_center_offset2;   % location of wheel axis point relative to aca using knuckle coordinates
         
-        kingpin_dist;   % dist between pca and aca;
-        
         % Knuckle Coordinates:
         % 1st dimension: Along kingpin axis
         % 2nd dimension: Normal to axis, in the action plane
@@ -31,49 +29,12 @@ classdef Knuckle < handle
             self.toe_node = toe_node;
             
             self.wheel = wheel;
-            
-            self.axis = unit(pca_node.location - aca_node.location);
-            
-            toe_to_aca = (toe_node.location - self.aca_node.location);
-            self.toe_height = dot(toe_to_aca, self.axis);
-            self.toe_center = self.toe_height * self.axis + self.aca_node.location;
-            axis_normal = toe_to_aca - (self.toe_height*self.axis);
-            self.toe_radius = norm(axis_normal);
-            plane_normal = cross(unit(axis_normal), self.axis);
-            self.toe_plane = Plane(self.toe_center, self.axis);
-            
-            self.a_arm_dist = norm(pca_node.location - aca_node.location);
-            
-            self.action_plane = Plane(pca_node.location, aca_node.location, toe_node.location);
-            
-            wheel_center_v1 = self.wheel.center - self.aca_node.location;
-            wheel_center_v2 = self.wheel.axis_point - self.aca_node.location;
-            self.wheel_center_offset1 = [dot(wheel_center_v1, self.axis);...
-                                         dot(wheel_center_v1, unit(axis_normal));...
-                                         dot(wheel_center_v1, plane_normal);];
-            
-            self.wheel_center_offset2 = [dot(wheel_center_v2, self.axis);...
-                                         dot(wheel_center_v2, unit(axis_normal));...
-                                         dot(wheel_center_v2, plane_normal);];
-                                     
-            self.kingpin_dist = norm(self.aca_node.location - self.pca_node.location);
-                               
+            self.update();
         end
         
         function res = valid_length(self)
             dist = norm(self.pca_node.location - self.aca_node.location);
             res = (abs(dist - self.a_arm_dist) < 1e-8);
-        end
-        
-%         function camber = calc_camber(self)
-%             self.axis = unit(self.pca_node.location - self.aca_node.location);
-%             camber = atan2d(self.axis(1), self.axis(2)) + self.camber_offset;
-%         end
-
-        function update_toe_plane(self)
-            self.axis = unit(self.pca_node.location - self.aca_node.location);
-            self.toe_center = self.toe_height * self.axis + self.aca_node.location;
-            self.toe_plane = Plane(self.toe_center, self.axis);
         end
         
         function theta = calc_signed_steering_angle_raw(self)
@@ -87,6 +48,13 @@ classdef Knuckle < handle
                 direction = -1;
             end
             theta = unsigned_toe_offset * direction;
+        end
+
+        function update_toe_plane(self)
+            axis = self.pca_node.location - self.aca_node.location;
+            self.axis = unit(axis);
+            self.toe_center = self.toe_height * self.axis + self.aca_node.location;
+            self.toe_plane = Plane(self.toe_center, self.axis);
         end
         
         function update_action_plane(self)
@@ -117,6 +85,32 @@ classdef Knuckle < handle
             self.wheel.plane = Plane(self.wheel.center, self.wheel.axis);
         end
         
+        function update(self)
+            self.axis = unit(self.pca_node.location - self.aca_node.location);
+            
+            toe_to_aca = (self.toe_node.location - self.aca_node.location);
+            self.toe_height = dot(toe_to_aca, self.axis);
+            self.toe_center = self.toe_height * self.axis + self.aca_node.location;
+            axis_normal = toe_to_aca - (self.toe_height*self.axis);
+            self.toe_radius = norm(axis_normal);
+            plane_normal = cross(unit(axis_normal), self.axis);
+            
+            self.a_arm_dist = norm(self.pca_node.location - self.aca_node.location);
+            
+            wheel_center_v1 = self.wheel.center - self.aca_node.location;
+            wheel_center_v2 = self.wheel.axis_point - self.aca_node.location;
+            self.wheel_center_offset1 = [dot(wheel_center_v1, self.axis);...
+                                         dot(wheel_center_v1, unit(axis_normal));...
+                                         dot(wheel_center_v1, plane_normal);];
+            
+            self.wheel_center_offset2 = [dot(wheel_center_v2, self.axis);...
+                                         dot(wheel_center_v2, unit(axis_normal));...
+                                         dot(wheel_center_v2, plane_normal);];
+            
+            self.update_toe_plane();
+            self.update_action_plane();
+        end
+        
         function [camber, toe] = calc_camber_and_toe(self)
             n = self.wheel.plane.normal;
             x = [1;0;0];
@@ -137,7 +131,6 @@ classdef Knuckle < handle
             toe = acosd(dot(toe_vec, z)) * toe_direction;
             camber = acosd(dot(camber_vec, y)) * camber_direction;
         end
-        
         
     end
 end

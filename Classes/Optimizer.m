@@ -25,7 +25,7 @@ classdef Optimizer < handle
             self.desired_static_char = desired_static_char;
             
             
-            self.start = self.get_node_locations();
+            self.start = self.get_current_inputs();
             test = self.start + rand(size(self.start)) * 3 - 1.5;
 %             self.get_fitness(self.start)
 %             finish = self.get_node_locations();
@@ -106,9 +106,14 @@ classdef Optimizer < handle
             end
         end
         
-        function fitness = get_fitness(self, locations)
+        function output = get_current_inputs(self)
+            output = self.get_node_locations();
+            output = [output; self.suspension.get_planar_data()];
+        end
+        
+        function fitness = get_fitness(self, inputs)
             num_sweeps = 3;
-            self.update_locations(locations);
+            self.update_inputs(inputs);
             [static_char, ~] = self.suspension.perform_sweep(num_sweeps, 0);
             fitness = calc_fitness(static_char, self.desired_static_char, self.static_char_weights);
             self.fitnesses(end + 1) = fitness;
@@ -123,20 +128,29 @@ classdef Optimizer < handle
             end
             locations = reshape(locations, [numel(locations), 1]);
         end
-        
-        function update_locations(self, new_locations)
+
+        function update_inputs(self, inputs)
+            new_locations = inputs(1:end-3);
+            planar_inputs = inputs(end-2:end);
             new_locations = reshape(new_locations, [3, numel(new_locations)/3]);
             nodes = self.suspension.node_list;
             for index = 1:length(nodes)
                 nodes(index).location = new_locations(:, index);
             end
+            self.suspension.update_planar_nodes(planar_inputs);
             self.suspension.update_all();
         end
+
         
         function [expressions, constraints] = get_inequality_constraints(self)
             nodes = self.suspension.node_list;
             n = length(nodes);
-            A = zeros([6*n, 3*n+ 1]);
+            
+            % The size of this matrix is enough to hold the constraints
+            % related to all nodes and planar inputs. 
+            A = zeros([6*n + 6, 3*n + 3 + 1]);
+            
+            % populare node contraints into A
             region_lims = {'max_x', 'min_x', 'max_y', 'min_y', 'max_z', 'min_z'};
             for index = 1:n
                 for dimension = 1:3
@@ -149,6 +163,14 @@ classdef Optimizer < handle
                     A(row + 1, end) = -nodes(index).region.(region_lims{limit_index + 1});
                 end
             end
+            % Shock angle limits
+            A([end-5, end-4], [end-3, end]) = [1, 179; -1, 179];
+            % pushrod angle limits
+            A([end-3, end-2], [end-2, end]) = [1, 179; -1, 179];
+            % length limits
+            A([end-1, end], [end-1, end]) = [1, 25; -1, -5];
+            
+            
             expressions = A(:, 1:end-1);
             constraints = A(:, end);
         end

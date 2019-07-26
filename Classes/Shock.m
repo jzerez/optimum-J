@@ -3,9 +3,9 @@ classdef Shock
         inboard_node;
         outboard_node;
         action_plane;
-        static_length = mm_to_in(250);
+        static_length = mm_to_in(172);
         curr_length;
-        total_travel = mm_to_in(50);
+        total_travel = mm_to_in(56);
     end
     
     methods

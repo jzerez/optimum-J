@@ -56,6 +56,7 @@ classdef Rocker < handle
             self.control_arm_lever = norm(control_arm_point - pivot_point);
             self.ordered_points = [pivot_point, shock_point, control_arm_point];
         end
+        
     end
     
     methods (Access = private)

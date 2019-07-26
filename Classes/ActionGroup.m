@@ -54,19 +54,17 @@ classdef ActionGroup < handle
             self.curr_pca = pca;
             self.curr_knuckle = knuckle;
             self.curr_rack = rack; 
-            self.action_plane = rocker.plane;
+            self.action_plane = Plane(shock.inboard_node.location, pushrod.outboard_node.location, rocker.pivot_node.location);
             
             self.node_list = [rocker.pivot_node];
-            self.node_list(2) = rocker.shock_node;
-            self.node_list(3) = rocker.control_arm_node;
-            self.node_list(4) = shock.inboard_node;
-            self.node_list(5) = pushrod.outboard_node;
-            self.node_list(6:7) = aca.endpoints;
-            self.node_list(8:9) = pca.endpoints;
-            self.node_list(10) = knuckle.aca_node;
-            self.node_list(11) = knuckle.pca_node;
-            self.node_list(12) = knuckle.toe_node;
-            self.node_list(13) = rack.location_node;
+            self.node_list(2) = shock.inboard_node;
+            self.node_list(3) = pushrod.outboard_node;
+            self.node_list(4:5) = aca.endpoints;
+            self.node_list(6:7) = pca.endpoints;
+            self.node_list(8) = knuckle.aca_node;
+            self.node_list(9) = knuckle.pca_node;
+            self.node_list(10) = knuckle.toe_node;
+            self.node_list(11) = rack.location_node;
             
 %             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
@@ -409,13 +407,71 @@ classdef ActionGroup < handle
         end
         
         function update_all(self)
+            % Call all standard update functions for components
             self.curr_rocker.update();
             self.curr_pushrod.update();
             self.curr_aca.update();
             self.curr_pca.update();
             self.curr_knuckle.update();
             self.curr_rack.reset_endpoint();
+        end
+        
+        function update_planar_nodes(self, input)
+            % update action plane
+            p1 = self.curr_shock.inboard_node.location;
+            p2 = self.curr_pushrod.outboard_node.location;
+            p3 = self.curr_rocker.pivot_node.location;
+            self.action_plane = Plane(p1, p2, p3);
+            if self.action_plane.normal(3) < 0
+                self.action_plane.normal = -self.action_plane.normal;
+            end
             
+            shock_angle = input(1);
+            pushrod_angle= input(2);
+            pushrod_length = input(3);
+            shock_point = calc_planar_link_from_angle(self.action_plane,...
+                                  self.curr_shock.inboard_node.location,...
+                                  self.curr_shock.static_length,...
+                                  self.curr_rocker.pivot_node.location,... 
+                                  shock_angle);
+            pushrod_point = calc_planar_link_from_angle(self.action_plane,...
+                                  self.curr_pushrod.outboard_node.location,...
+                                  pushrod_length,...
+                                  self.curr_rocker.pivot_node.location,... 
+                                  pushrod_angle);
+                              
+            self.curr_shock.outboard_node.location = shock_point;
+            self.curr_pushrod.inboard_node.location = pushrod_point;
+        end
+        
+        function output = get_planar_data(self)
+            % Function finds data from planar nodes (ie: rocker points
+            % other than the pivot)
+            
+            % output(1) is the signed angle between the shock and rocker
+            % output(2) is the signed angle betwwen the pushrod and rocker
+            % output(3) is the current length of the pushrod
+            
+            % Create shorthands to shorten code length
+            pivot = self.curr_rocker.pivot_node.location;
+            shock_out = self.curr_rocker.shock_node.location;
+            shock_in = self.curr_shock.inboard_node.location;
+            pushrod_out = self.curr_pushrod.outboard_node.location;
+            pushrod_in = self.curr_pushrod.inboard_node.location;
+            
+            % Find signed shock angle
+            shock_angle = acosd(dot(unit(pivot - shock_out), unit(shock_in - shock_out)));
+            cross_direction = cross(unit(pivot - shock_out), unit(shock_in - shock_out));
+            shock_sign = sign(dot(cross_direction, self.action_plane.normal));
+            shock_angle = shock_sign * shock_angle;
+            
+            % Find signed pushrod anglepla
+            pushrod_angle = acosd(dot(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in)));
+            cross_direction = cross(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in));
+            pushrod_sign = sign(dot(cross_direction, self.action_plane.normal));
+            pushrod_angle = pushrod_sign * pushrod_angle;
+            
+            output = [shock_angle; pushrod_angle; self.curr_pushrod.length];
         end
         
         function calc_static_char(self)

@@ -54,7 +54,7 @@ classdef ActionGroup < handle
             self.curr_pca = pca;
             self.curr_knuckle = knuckle;
             self.curr_rack = rack; 
-            self.action_plane = rocker.plane;
+            self.action_plane = Plane(shock.inboard_node.location, pushrod.outboard_node.location, rocker.pivot_node.location);
             
             self.node_list = [rocker.pivot_node];
             self.node_list(2) = rocker.shock_node;
@@ -71,11 +71,10 @@ classdef ActionGroup < handle
 %             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
             c = self.curr_knuckle.wheel.center;
-            cp = self.curr_knuckle.wheel.contact_patch;
             self.front_view_plane = Plane([0; 0; c(3)], [0; 0; 1]);
             self.side_view_plane = Plane([c(1); 0; 0], [1; 0; 0]);
             
-            self.calc_static_char(c, cp);
+            self.calc_static_char();
         end
         
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
@@ -134,7 +133,8 @@ classdef ActionGroup < handle
             self.reset_rack();
             self.curr_knuckle.update_action_plane();
             self.curr_knuckle.update_toe_plane();
-            static_char = self.calc_static_char(self.curr_knuckle.wheel.;
+            self.calc_static_char();
+            static_char = self.static_char;
             dyn_char = [];
         end
         
@@ -409,16 +409,72 @@ classdef ActionGroup < handle
         end
         
         function update_all(self)
+            % update action plane
+            self.action_plane = Plane(shock.inboard_node.location, pushrod.outboard_node.location, rocker.pivot_node.location);
+            if self.action_plane.normal(3) < 0
+                self.action_plane.normal = -self.action_plane.normal;
+            end
+            
+            % Call all standard update functions for components
             self.curr_rocker.update();
             self.curr_pushrod.update();
             self.curr_aca.update();
             self.curr_pca.update();
             self.curr_knuckle.update();
             self.curr_rack.reset_endpoint();
-            
         end
         
-        function calc_static_char(self, c, cp)
+        function update_planar_nodes(self, input)
+            shock_angle = input(1);
+            pushrod_angle= input(2);
+            pushrod_length = input(3);
+            shock_point = calc_planar_link_from_angle(self.action_plane,...
+                                  self.curr_shock.inboard_node.location,...
+                                  self.curr_shock.static_length,...
+                                  self.curr_rocker.pivot_node.location,... 
+                                  shock_angle);
+            pushrod_point = calc_planar_link_from_angle(self.action_plane,...
+                                  self.curr_pushrod.outboard_node.location,...
+                                  pushrod_length,...
+                                  self.curr_rocker.pivot_node.location,... 
+                                  pushrod_angle);
+                              
+            self.curr_shock.outboard_node.location = shock_point;
+            self.curr_pushrod.inboard_node.location = pushrod_point;
+        end
+        
+        function output = get_planar_data(self)
+            % Function finds data from planar nodes (ie: rocker points
+            % other than the pivot)
+            
+            % output(1) is the signed angle between the shock and rocker
+            % output(2) is the signed angle betwwen the pushrod and rocker
+            % output(3) is the current length of the pushrod
+            
+            % Create shorthands to shor
+            pivot = self.curr_rocker.pivot_node.location;
+            shock_out = self.curr_rocker.shock_node.location;
+            shock_in = self.curr_shock.inboard_node.location;
+            pushrod_out = self.curr_pushrod.outboard_node.location;
+            pushrod_in = self.curr_pushrod.inboard_node.location;
+            
+            shock_angle = acosd(dot(unit(pivot - shock_out), unit(shock_in - shock_out)));
+            cross_direction = cross(unit(pivot - shock_out), unit(shock_in - shock_out));
+            shock_sign = sign(dot(cross_direction, self.action_plane.normal));
+            shock_angle = shock_sign * shock_angle;
+            
+            pushrod_angle = acosd(dot(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in)));
+            cross_direction = cross(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in));
+            pushrod_sign = sign(dot(cross_direction, self.action_plane.normal));
+            pushrod_angle = pushrod_sign * pushrod_angle;
+            
+            output = [shock_angle; pushrod_angle; self.curr_pushrod.length];
+        end
+        
+        function calc_static_char(self)
+            c = self.curr_knuckle.wheel.center;
+            cp = self.curr_knuckle.wheel.contact_patch;
+            
             IC = self.calc_instant_center();
             self.static_char.RCH = self.calc_roll_center_height(IC);
             self.static_char.FVSA = abs(IC(1)-cp(1));

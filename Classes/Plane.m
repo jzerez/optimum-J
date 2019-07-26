@@ -39,6 +39,10 @@ classdef Plane
        
        function res = is_in_plane(self, point)
             v = unit(point - self.position);
+            if isnan(v)
+                res = true;
+                return
+            end
             dist = abs(dot(v, self.normal));
             if dist < 1e-8
                 res = true;

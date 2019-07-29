@@ -1,4 +1,4 @@
-classdef Plane
+classdef Plane < handle
    properties
         position;
         normal;
@@ -27,14 +27,8 @@ classdef Plane
                self.position = varargin{1};
                self.normal = varargin{2};
            end
-           if isequal(self.normal, [1;0;0])
-                ibase = [0; 1; 0];
-           else
-                ibase = [1; 0; 0];
-           end
-           self.i_hat = unit(self.project_into_plane(self.position + ibase) - self.position);
-           self.j_hat = cross(self.normal, self.i_hat);
-           assert(self.is_in_plane([self.i_hat+self.j_hat+self.position]))
+           
+           self.update();
        end
        
        function res = is_in_plane(self, point)
@@ -98,6 +92,17 @@ classdef Plane
             v = self.project_into_plane(self.position + w) - self.position;
             n = m / dot(v,w);
             point = self.position - n*v;
+       end
+       
+       function update(self)
+          if isequal(self.normal, [1;0;0])
+                ibase = [0; 1; 0];
+           else
+                ibase = [1; 0; 0];
+           end
+           self.i_hat = unit(self.project_into_plane(self.position + ibase) - self.position);
+           self.j_hat = cross(self.normal, self.i_hat);
+           assert(self.is_in_plane([self.i_hat+self.j_hat+self.position])) 
        end
    end
 end

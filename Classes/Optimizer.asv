@@ -111,9 +111,9 @@ classdef Optimizer < handle
             output = [output; self.suspension.get_planar_data()];
         end
         
-        function fitness = get_fitness(self, locations)
+        function fitness = get_fitness(self, inputs)
             num_sweeps = 3;
-            self.update_locations(locations);
+            self.update_inputs(inputs);
             [static_char, ~] = self.suspension.perform_sweep(num_sweeps, 0);
             fitness = calc_fitness(static_char, self.desired_static_char, self.static_char_weights);
             self.fitnesses(end + 1) = fitness;
@@ -131,13 +131,13 @@ classdef Optimizer < handle
 
         function update_inputs(self, inputs)
             new_locations = inputs(1:end-3);
-            planar_inputs = inputs
+            planar_inputs = inputs(end-2:end);
             new_locations = reshape(new_locations, [3, numel(new_locations)/3]);
             nodes = self.suspension.node_list;
             for index = 1:length(nodes)
                 nodes(index).location = new_locations(:, index);
             end
-            self.suspension.update_planar_nodes(angles);
+            self.suspension.update_planar_nodes(planar_inputs);
             self.suspension.update_all();
         end
 
@@ -164,9 +164,9 @@ classdef Optimizer < handle
                 end
             end
             % Shock angle limits
-            A([end-5, end-4], [end-3, end]) = [1, 179; -1, 179];
+            A([end-5, end-4], [end-3, end]) = [1, 170; -1, 10];
             % pushrod angle limits
-            A([end-3, end-2], [end-2, end]) = [1, 179; -1, 179];
+            A([end-3, end-2], [end-2, end]) = [1, 176; -1, 4];
             % length limits
             A([end-1, end], [end-1, end]) = [1, 25; -1, -5];
             

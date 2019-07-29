@@ -139,6 +139,7 @@ classdef Optimizer < handle
             end
             self.suspension.update_planar_nodes(planar_inputs);
             self.suspension.update_all();
+            new_locations = [];
         end
 
         
@@ -163,10 +164,14 @@ classdef Optimizer < handle
                     A(row + 1, end) = -nodes(index).region.(region_lims{limit_index + 1});
                 end
             end
+            shock_sign = sign(self.start(end-2));
+            pushrod_sign = sign(self.start(end-1));
             % Shock angle limits
-            A([end-5, end-4], [end-3, end]) = [1, 179; -1, 179];
+            A([end-5, end-4], [end-3, end]) = [1, shock_sign*170;...
+                                              -1, shock_sign*10];
             % pushrod angle limits
-            A([end-3, end-2], [end-2, end]) = [1, 179; -1, 179];
+            A([end-3, end-2], [end-2, end]) = [1, pushrod_sign*174;...
+                                              -1, pushrod_sign*6];
             % length limits
             A([end-1, end], [end-1, end]) = [1, 25; -1, -5];
             

@@ -55,7 +55,10 @@ classdef ActionGroup < handle
             self.curr_knuckle = knuckle;
             self.curr_rack = rack; 
             self.action_plane = Plane(shock.inboard_node.location, pushrod.outboard_node.location, rocker.pivot_node.location);
-            
+            if self.action_plane.normal(3) < 1
+                self.action_plane.normal = -self.action_plane.normal;
+                self.action_plane.update();
+            end
             self.node_list = [rocker.pivot_node];
             self.node_list(2) = shock.inboard_node;
             self.node_list(3) = pushrod.outboard_node;
@@ -424,6 +427,7 @@ classdef ActionGroup < handle
             self.action_plane = Plane(p1, p2, p3);
             if self.action_plane.normal(3) < 0
                 self.action_plane.normal = -self.action_plane.normal;
+                self.action_plane.update()
             end
             
             shock_angle = input(1);
@@ -448,8 +452,10 @@ classdef ActionGroup < handle
             % Function finds data from planar nodes (ie: rocker points
             % other than the pivot)
             
-            % output(1) is the signed angle between the shock and rocker
-            % output(2) is the signed angle betwwen the pushrod and rocker
+            % output(1) is the angle between the shock and the line
+            %   between the shock and the rocker pivot
+            % output(2) is the angle between the pushrod and the line
+            %   between the pushrod and the rocker pivot
             % output(3) is the current length of the pushrod
             
             % Create shorthands to shorten code length
@@ -459,17 +465,17 @@ classdef ActionGroup < handle
             pushrod_out = self.curr_pushrod.outboard_node.location;
             pushrod_in = self.curr_pushrod.inboard_node.location;
             
-            % Find signed shock angle
-            shock_angle = acosd(dot(unit(pivot - shock_out), unit(shock_in - shock_out)));
-            cross_direction = cross(unit(pivot - shock_out), unit(shock_in - shock_out));
-            shock_sign = sign(dot(cross_direction, self.action_plane.normal));
-            shock_angle = shock_sign * shock_angle;
+            v1 = unit(shock_out-shock_in);
+            v2 = unit(pivot - shock_in);
+            shock_angle = acosd(dot(v1, v2));
+            cross_direction = cross(v2, v1);
+            shock_angle = shock_angle * sign(dot(cross_direction, self.action_plane.normal));
             
-            % Find signed pushrod anglepla
-            pushrod_angle = acosd(dot(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in)));
-            cross_direction = cross(unit(pivot - pushrod_in), unit(pushrod_out - pushrod_in));
-            pushrod_sign = sign(dot(cross_direction, self.action_plane.normal));
-            pushrod_angle = pushrod_sign * pushrod_angle;
+            v1 = unit(pushrod_in - pushrod_out);
+            v2 = unit(pivot - pushrod_out);
+            pushrod_angle = acosd(dot(v1, v2));
+            cross_direction = cross(v2, v1);
+            pushrod_angle = pushrod_angle * sign(dot(cross_direction, self.action_plane.normal));
             
             output = [shock_angle; pushrod_angle; self.curr_pushrod.length];
         end

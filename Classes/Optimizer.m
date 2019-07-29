@@ -26,7 +26,7 @@ classdef Optimizer < handle
             
             
             self.start = self.get_current_inputs();
-            test = self.start + rand(size(self.start)) * 3 - 1.5;
+            test = self.start + rand(size(self.start)) * 2 - 1;
 %             self.get_fitness(self.start)
 %             finish = self.get_node_locations();
 %             test = self.start + (rand(size(self.start)) * 3 - 1.5);

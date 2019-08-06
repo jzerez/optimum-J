@@ -7,13 +7,14 @@ function fitness = calc_fitness(static_char, desired_static_char, static_char_we
     dynamic_error = 0;
     for index = 1:numel(scf)
         i = scf{index};
+
         % Loose consistency check for struct properties
         assert(isfield(desired_static_char, i));
         assert(isfield(static_char_weights, i));
-        
+
         % Assign fitness based on weight (simple)
         char = static_char.(i);
-        error = static_char_weights.(i) * abs(desired_static_char.(i) - char) / desired_static_char.(i);
+        error = static_char_weights.(i) * abs(desired_static_char.(i) - char);
         static_error = static_error + error;
     end
 %     % Calc total wheel travel

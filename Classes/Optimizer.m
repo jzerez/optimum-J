@@ -38,8 +38,11 @@ classdef Optimizer < handle
             self.fitnesses = [];
             self.gradients = zeros([num_nodes, max_steps+1]);
             l = self.ez_optimize(test);
+            
             self.get_fitness(l)
             self.get_fitness(self.start)
+            s=self.suspension;
+            plot_system_3d('k', s.curr_knuckle, s.curr_pca, s.curr_aca, s.curr_rocker, s.curr_rack, s.curr_pushrod, s.curr_shock);
         end
         
         function l = ez_optimize(self, pos)
@@ -166,12 +169,13 @@ classdef Optimizer < handle
             end
             shock_sign = sign(self.start(end-2));
             pushrod_sign = sign(self.start(end-1));
+            
             % Shock angle limits
-            A([end-5, end-4], [end-3, end]) = [1, shock_sign*170;...
-                                              -1, shock_sign*10];
+            A([end-5, end-4], [end-3, end]) = [shock_sign, 170;...
+                                              -shock_sign, -10];
             % pushrod angle limits
-            A([end-3, end-2], [end-2, end]) = [1, pushrod_sign*174;...
-                                              -1, pushrod_sign*6];
+            A([end-3, end-2], [end-2, end]) = [pushrod_sign, 174;...
+                                              -pushrod_sign, -6];
             % length limits
             A([end-1, end], [end-1, end]) = [1, 25; -1, -5];
             

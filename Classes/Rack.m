@@ -12,8 +12,7 @@ classdef Rack < handle
             self.location_node = location_node;
             self.max_travel = max_travel;
             self.static_length = static_length;
-            self.endpoint_location = location_node.location + (static_length / 2) * [1;0;0];
-            self.static_endpoint_location = self.endpoint_location;
+            self.update();
             % Rack should be centered left right in the car
             %assert(location_node.region.max_x == location_node.region.min_x);
         end
@@ -26,6 +25,11 @@ classdef Rack < handle
         
         function reset_endpoint(self)
             self.endpoint_location = self.location_node.location + (self.static_length / 2) * [1;0;0];
+        end
+        
+        function update(self)
+            self.static_endpoint_location = self.location_node.location + (self.static_length / 2) * [1;0;0];
+            self.reset_endpoint();
         end
     end
 end

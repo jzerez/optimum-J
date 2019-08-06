@@ -26,7 +26,8 @@ classdef ActionGroup < handle
                              'anti_percentage', NaN,...
                              'FVSA', NaN,...
                              'SVSA', NaN,...
-                             'mechanical_trail', NaN);
+                             'mechanical_trail', NaN,...
+                             'interference', false);
         
         % Dynamic Characteristics (vectors/matrices)
         dyn_char = struct('wheel_centers', NaN,...
@@ -55,7 +56,10 @@ classdef ActionGroup < handle
             self.curr_knuckle = knuckle;
             self.curr_rack = rack; 
             self.action_plane = Plane(shock.inboard_node.location, pushrod.outboard_node.location, rocker.pivot_node.location);
-            
+            if self.action_plane.normal(3) < 1
+                self.action_plane.normal = -self.action_plane.normal;
+                self.action_plane.update();
+            end
             self.node_list = [rocker.pivot_node];
             self.node_list(2) = shock.inboard_node;
             self.node_list(3) = pushrod.outboard_node;
@@ -73,10 +77,18 @@ classdef ActionGroup < handle
             self.side_view_plane = Plane([c(1); 0; 0], [1; 0; 0]);
             
             self.calc_static_char();
+            
         end
         
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
+            fprintf('STARTING SWEEP\n')
             self.plot_on = plot_on;
+            clf;
+            hold on;
+            plot_system_3d('b', self.curr_knuckle);
+            plot_system_3d('r', self.curr_aca, self.curr_pca);
+            plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
+            
             static_lateral_pos = self.curr_aca.tip.location(1);
             shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
             shock_start_step = self.curr_shock.total_travel / -2;
@@ -89,6 +101,8 @@ classdef ActionGroup < handle
            
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
+            
+
             
             if plot_on
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
@@ -128,8 +142,8 @@ classdef ActionGroup < handle
                 
             end
             self.take_shock_step(-shock_step_size * (num_steps - 1) - shock_start_step);
+            
             self.reset_rack();
-            self.curr_knuckle.update_action_plane();
             self.curr_knuckle.update_toe_plane();
             self.calc_static_char();
             static_char = self.static_char;
@@ -207,17 +221,15 @@ classdef ActionGroup < handle
         function [cambers, toes] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
             self.reset_rack();
             self.take_rack_step(rack_start_step);
-            self.interference_detection(1);
+            self.interference_detection(0);
             toes = zeros(1,num_steps);
             cambers = zeros(1,num_steps);
-            self.curr_knuckle.update_action_plane();
             [cambers(1), toes(1)] = self.curr_knuckle.calc_camber_and_toe();
             
             for index = 2:num_steps
                 self.take_rack_step(rack_step_size);
-                self.interference_detection(1);
-                    
-                self.curr_knuckle.update_action_plane();
+                self.interference_detection(0);
+
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
                 toes(index) = toe;
@@ -246,6 +258,7 @@ classdef ActionGroup < handle
             
             % update toe point of knuckle
             self.curr_knuckle.toe_node.location = new_location;
+            self.curr_knuckle.update_action_plane();
         end
         
         function reset_rack(self)
@@ -256,6 +269,7 @@ classdef ActionGroup < handle
         function res = interference_detection(self, debug)
             res = true;
             r = 0.3;
+
             % Check for toe-link aca interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
@@ -271,17 +285,17 @@ classdef ActionGroup < handle
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                 return;
             end
-%             
-%             % Check for pushrod aca interference
-%             if line_line_interference(self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r,...
-%                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
-%                 return;
-%             end
-%             % Check for pushrod aca interference (second arm)
-%             if line_line_interference(self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r,...
-%                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
-%                 return;
-%             end
+            
+            % Check for pushrod aca interference
+            if line_line_interference(self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r,...
+                                      self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                return;
+            end
+            % Check for pushrod aca interference (second arm)
+            if line_line_interference(self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r,...
+                                      self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                return;
+            end
             % Check for pushrod pca interference
             if line_line_interference(self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
@@ -325,7 +339,7 @@ classdef ActionGroup < handle
             end
             
             res = false;
-            if debug && res
+            if debug
                 disp('INTERFERENCE DETECTED')
             end
         end
@@ -345,7 +359,7 @@ classdef ActionGroup < handle
             v = unit(cp - IC);
             n = -IC(1) / v(1);
             RC = IC + n*v;
-            RCH = RC(2)
+            RCH = RC(2);
         end
         
         function [angle, mechanical_trail, scrub_radius, spindle_length] = calc_kingpin(self, c, cp)
@@ -368,11 +382,11 @@ classdef ActionGroup < handle
             assert(abs(axis_contact(2)) < 1e-6);
             mechanical_trail = axis_contact(3) - cp(3);
             scrub_radius = axis_contact(1) - cp(1);
-            scatter3(axis_contact(1), axis_contact(2), axis_contact(3), 'bo')
-            hold on
+%             scatter3(axis_contact(1), axis_contact(2), axis_contact(3), 'bo')
+%             hold on
             v = [axis_contact, upper_tip];
-            plot3(v(1, :), v(2, :), v(3, :), 'g--');
-            scatter3(c(1), c(2), c(3), 'r*');
+%             plot3(v(1, :), v(2, :), v(3, :), 'g--');
+%             scatter3(c(1), c(2), c(3), 'r*');
             lower_tip_2d = [lower_tip(1); lower_tip(2)];
             c_2d = [c(1); c(2)];
             
@@ -386,9 +400,9 @@ classdef ActionGroup < handle
             [aca_point, aca_line] = self.curr_aca.static_plane.calc_plane_plane_int(self.side_view_plane);
             eqns = [pca_line, aca_line, (aca_point - pca_point)];
             sols = rref(eqns);
-            quiver3(pca_point(1), pca_point(2), pca_point(3), pca_line(1), pca_line(2), pca_line(3));
-            hold on
-            quiver3(aca_point(1), aca_point(2), aca_point(3), aca_line(1), aca_line(2), aca_line(3));
+%             quiver3(pca_point(1), pca_point(2), pca_point(3), pca_line(1), pca_line(2), pca_line(3));
+%             hold on
+%             quiver3(aca_point(1), aca_point(2), aca_point(3), aca_line(1), aca_line(2), aca_line(3));
             
             % if it is unable to find a solution
             if ~isequal(sols(1:2, 1:2), eye(2))
@@ -408,12 +422,14 @@ classdef ActionGroup < handle
         
         function update_all(self)
             % Call all standard update functions for components
+            fprintf('UPDATING SUSPENSION...\n');
             self.curr_rocker.update();
             self.curr_pushrod.update();
             self.curr_aca.update();
             self.curr_pca.update();
             self.curr_knuckle.update();
-            self.curr_rack.reset_endpoint();
+            self.curr_rack.update();
+            self.toelink_length = norm(self.curr_knuckle.toe_node.location - self.curr_rack.endpoint_location);
         end
         
         function update_planar_nodes(self, input)
@@ -435,6 +451,7 @@ classdef ActionGroup < handle
                                   self.curr_shock.static_length,...
                                   self.curr_rocker.pivot_node.location,... 
                                   shock_angle);
+                              
             pushrod_point = calc_planar_link_from_angle(self.action_plane,...
                                   self.curr_pushrod.outboard_node.location,...
                                   pushrod_length,...
@@ -466,14 +483,14 @@ classdef ActionGroup < handle
             v2 = unit(pivot - shock_in);
             shock_angle = acosd(dot(v1, v2));
             cross_direction = cross(v2, v1);
-            shock_angle = shock_angle * sign(dot(cross_direction, self.action_plane));
+            shock_angle = shock_angle * sign(dot(cross_direction, self.action_plane.normal));
             
             v1 = unit(pushrod_in - pushrod_out);
-            v2 = unit(pivot - shock_in);
-            shock_angle = acosd(dot(v1, v2));
+            v2 = unit(pivot - pushrod_out);
+            pushrod_angle = acosd(dot(v1, v2));
             cross_direction = cross(v2, v1);
-            shock_angle = shock_angle * sign(dot(cross_direction, self.action_plane));
-            pushrod_angle = acosd(dot(unit(pushrod_in - pushrod_out), unit(pivot - pushrod_out)));
+            pushrod_angle = pushrod_angle * sign(dot(cross_direction, self.action_plane.normal));
+            
             output = [shock_angle; pushrod_angle; self.curr_pushrod.length];
         end
         

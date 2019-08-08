@@ -1,4 +1,4 @@
-function fitness = calc_fitness(static_char, dyn_char, desired_static_char, static_char_weights, desired_dyn_char, dyn_char_weights)
+function fitness = calc_fitness(static_char, dyn_char, desired_static_char, desired_dyn_char, static_char_weights, dyn_char_weights)
     % Static Characteristic Error Calculations
     scf = fieldnames(static_char);
     static_error = 0;
@@ -27,8 +27,8 @@ function fitness = calc_fitness(static_char, dyn_char, desired_static_char, stat
     % Wheel Travel Error %
     s = size(dyn_char.toes, 2);
     % Get the top and bottom contact patch locations at zero toe
-    v1 = dyn_char.contact_patches(1, round(s/2), :);
-    v2 = dyn_char.contact_patches(end, round(s/2), :);
+    v1 = dyn_char.contact_patches(1, round(s(2)/2), :);
+    v2 = dyn_char.contact_patches(end, round(s(2)/2), :);
     % Find vertical dist
     wheel_travel = abs(v2(2) - v1(2));
     if wheel_travel < in_to_mm(50)
@@ -46,9 +46,7 @@ function fitness = calc_fitness(static_char, dyn_char, desired_static_char, stat
 
     % Lateral Scrub Error %
     lateral_pos = dyn_char.contact_patches(:, :, 1);
-    avg_scrub = mean(mean(diff(lateral_pos + min(lateral_pos)*ones(s, 1))));
-    scrub_error = abs(avg_scrub - desired_dyn_char.scrub) * dyn_char_weights.scrub;
-    dynamic_error = scrub_error + dynamic_error;
+    avg_scrub = 
     
     fitness = dynamic_error + static_error;
 

@@ -83,6 +83,7 @@ classdef Knuckle < handle
             self.wheel.axis_point = sum(self.wheel_center_offset2' .* M, 2) + self.aca_node.location;
             self.wheel.axis = self.wheel.axis_point - self.wheel.center;
             self.wheel.plane = Plane(self.wheel.center, self.wheel.axis);
+            self.wheel.update();
         end
         
         function update(self)

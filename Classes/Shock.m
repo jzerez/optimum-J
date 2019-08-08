@@ -23,7 +23,6 @@ classdef Shock
         
         function length = calc_length(self)
             length = norm(self.outboard_node.location - self.inboard_node.location);
-            %assert(length - self.static_length);
         end
     end
 end

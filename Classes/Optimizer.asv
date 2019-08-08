@@ -12,21 +12,17 @@ classdef Optimizer < handle
         gradients;
         fitnesses;
         
-        ax;
         start;
         expressions;
         constraints;
     end
     
     methods (Access = public)
-        function self = Optimizer(suspension, max_steps, desired_static_char, static_char_weights, desired_dyn_char, dyn_char_weights)
+        function self = Optimizer(suspension, max_steps, desired_static_char, static_char_weights)
             self.suspension = suspension;
             num_nodes = length(self.suspension.node_list);
-            self.desired_static_char = desired_static_char;
             self.static_char_weights = static_char_weights;
-            
-            self.desired_dyn_char = desired_dyn_char;
-            self.dyn_char_weights = dyn_char_weights;
+            self.desired_static_char = desired_static_char;
             
             
             self.start = self.get_current_inputs();
@@ -41,9 +37,6 @@ classdef Optimizer < handle
             self.static_locations = zeros([3, num_nodes, max_steps+1]);
             self.fitnesses = [];
             self.gradients = zeros([num_nodes, max_steps+1]);
-            figure;
-            hold on;
-            self.ax = gca;
             l = self.ez_optimize(test);
             
             self.get_fitness(l)
@@ -125,10 +118,10 @@ classdef Optimizer < handle
             num_sweeps = 3;
             self.update_inputs(inputs);
             [static_char, dyn_char] = self.suspension.perform_sweep(num_sweeps, 0);
-            fitness = calc_fitness(static_char, dyn_char, self.desired_static_char, self.static_char_weights, self.desired_dyn_char, self.dyn_char_weights);
+            fitness = calc_fitness(static_char, dyn_char, self.desired_static_char, self.static_char_weights, dyn_char_weights);
+            fitness = calc_fitness(static_char, self.desired_static_char, self.static_char_weights);
             self.fitnesses(end + 1) = fitness;
-            scatter(self.ax, length(self.fitnesses), fitness, 'bo')
-            drawnow()
+            disp(self.fitnesses)
         end
         
         function locations = get_node_locations(self)

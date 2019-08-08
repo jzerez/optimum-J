@@ -1,4 +1,4 @@
-classdef Wheel
+classdef Wheel < handle
     properties
         center;         % Wheel center
         axis;           % Axis of wheel
@@ -30,12 +30,12 @@ classdef Wheel
             self.axis_point = self.center + self.axis;
             
             self.plane = Plane(self.center, self.axis);
-            self.contact_patch = self.calc_contact_patch();
+            self.update();
         end
         
-        function pt = calc_contact_patch(self)
+        function update(self)
             vec = [0; -1; 0] + self.center;
-            pt = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
+            self.contact_patch = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
         end
         
     end

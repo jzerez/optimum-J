@@ -30,8 +30,9 @@ classdef ActionGroup < handle
                              'interference', false);
         
         % Dynamic Characteristics (vectors/matrices)
-        dyn_char = struct('wheel_centers', NaN,...
-                          'wheel_orientations', NaN);
+        dyn_char = struct('contact_patches', NaN,...
+                          'cambers', NaN,...
+                          'toes', NaN);
         
         front_view_plane;
         side_view_plane;
@@ -83,12 +84,13 @@ classdef ActionGroup < handle
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
             fprintf('STARTING SWEEP\n')
             self.plot_on = plot_on;
-            clf;
-            hold on;
-            plot_system_3d('b', self.curr_knuckle);
-            plot_system_3d('r', self.curr_aca, self.curr_pca);
-            plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
-            
+            if plot_on
+                clf;
+                hold on;
+                plot_system_3d('b', self.curr_knuckle);
+                plot_system_3d('r', self.curr_aca, self.curr_pca);
+                plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
+            end
             static_lateral_pos = self.curr_aca.tip.location(1);
             shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
             shock_start_step = self.curr_shock.total_travel / -2;
@@ -101,6 +103,7 @@ classdef ActionGroup < handle
            
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
+            contact_patches = zeros([num_steps, num_steps, 3]);
             
 
             
@@ -108,9 +111,10 @@ classdef ActionGroup < handle
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
             end
 
-            [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
+            [camber, toe, cp] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
             cambers(1, :) = camber;
             toes(1, :) = toe;
+            contact_patches(1, :, :) = cp;
             
             for shock_index = 2:num_steps
                 self.take_shock_step(shock_step_size);
@@ -118,9 +122,10 @@ classdef ActionGroup < handle
                     plot_system_3d('k', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
                     drawnow()
                 end
-                [camber, toe] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
+                [camber, toe, cp] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
                 toes(shock_index, :) = toe;
                 cambers(shock_index, :) = camber;
+                contact_patches(shock_index, :, :) = cp;
             end
 
             if plot_on
@@ -147,7 +152,11 @@ classdef ActionGroup < handle
             self.curr_knuckle.update_toe_plane();
             self.calc_static_char();
             static_char = self.static_char;
-            dyn_char = [];
+            
+            self.dyn_char.toes = toes;
+            self.dyn_char.cambers = cambers;
+            self.dyn_char.contact_patches = contact_patches;
+            dyn_char = self.dyn_char;
         end
         
         function take_shock_step(self, step)
@@ -218,13 +227,15 @@ classdef ActionGroup < handle
             assert(abs(norm(new_location - ref_point) - ref_dist) < 1e-8);
         end
         
-        function [cambers, toes] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
+        function [cambers, toes, contact_patches] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
             self.reset_rack();
             self.take_rack_step(rack_start_step);
             self.interference_detection(0);
             toes = zeros(1,num_steps);
             cambers = zeros(1,num_steps);
+            contact_patches = zeros(3, num_steps);
             [cambers(1), toes(1)] = self.curr_knuckle.calc_camber_and_toe();
+            contact_patches(:, 1) = self.curr_knuckle.wheel.contact_patch;
             
             for index = 2:num_steps
                 self.take_rack_step(rack_step_size);
@@ -234,6 +245,7 @@ classdef ActionGroup < handle
 
                 toes(index) = toe;
                 cambers(index) = camber;
+                contact_patches(:, index) = self.curr_knuckle.wheel.contact_patch;
                 if self.plot_on
                     plot_system_3d('g', self.curr_knuckle)
                 end
@@ -363,7 +375,8 @@ classdef ActionGroup < handle
         end
         
         function RCH = calc_roll_center_height(self, IC)
-            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.calc_contact_patch());
+            self.curr_knuckle.wheel.update();
+            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.contact_patch);
             v = unit(cp - IC);
             n = -IC(1) / v(1);
             RC = IC + n*v;
@@ -468,6 +481,7 @@ classdef ActionGroup < handle
                               
             self.curr_shock.outboard_node.location = shock_point;
             self.curr_pushrod.inboard_node.location = pushrod_point;
+            self.curr_shock.curr_length = self.curr_shock.calc_length();
         end
         
         function output = get_planar_data(self)

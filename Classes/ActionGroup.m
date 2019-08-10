@@ -230,7 +230,7 @@ classdef ActionGroup < handle
         function [cambers, toes, contact_patches] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
             self.reset_rack();
             self.take_rack_step(rack_start_step);
-            self.interference_detection(0);
+            b = self.interference_detection(1);
             toes = zeros(1,num_steps);
             cambers = zeros(1,num_steps);
             contact_patches = zeros(3, num_steps);
@@ -239,7 +239,7 @@ classdef ActionGroup < handle
             
             for index = 2:num_steps
                 self.take_rack_step(rack_step_size);
-                self.interference_detection(0);
+                b= self.interference_detection(1);
 
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
@@ -288,37 +288,59 @@ classdef ActionGroup < handle
             % Check for toe-link aca interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
+                if debug
+                    disp('toe-link aca interference 1')
+                end
                 return;
             end
             % Check for toe-link aca interference (second arm)
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
+                if debug
+                    disp('toelink aca interference 2')
+                end
                 return;
             end
             % Check for pushrod toelink interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod toelink interference')
+                end
                 return;
             end
             
             % Check for pushrod aca interference
             if line_line_interference(self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod aca interference 1')
+                end
                 return;
             end
             % Check for pushrod aca interference (second arm)
             if line_line_interference(self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod aca interference 2')
+                end
                 return;
             end
             % Check for pushrod pca interference
             if line_line_interference(self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod pca interference 1')
+                end
                 return;
             end
             % Check for pushrod pca interference (second arm)
             if line_line_interference(self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                
+                if debug
+                    disp('pushrod aca interference 2')
+                end
                 return;
             end
             
@@ -329,26 +351,45 @@ classdef ActionGroup < handle
                 % Check for toe link interference
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r)
+                    if debug
+                        disp('Wheel toelink interference')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
+                    if debug
+                        disp('Wheel aca interference 1')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
+                    if debug
+                        disp('Wheel aca interference 2')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r)
+                    if debug
+                        disp('Wheel pca interference 1')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r)
+                    if debug
+                        disp('Wheel pca interference 2')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                           self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                    
+                    if debug
+                        disp('Wheel pushrod interference 1')
+                    end
                     return;
                 end
             end
@@ -357,10 +398,6 @@ classdef ActionGroup < handle
             
             if ~previous_interference
                 self.static_char.interference = false;
-            end
-            
-            if debug
-                disp('INTERFERENCE DETECTED')
             end
         end
         
@@ -451,6 +488,7 @@ classdef ActionGroup < handle
             self.curr_knuckle.update();
             self.curr_rack.update();
             self.toelink_length = norm(self.curr_knuckle.toe_node.location - self.curr_rack.endpoint_location);
+            self.static_char.interference = 0;
         end
         
         function update_planar_nodes(self, input)

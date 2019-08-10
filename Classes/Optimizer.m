@@ -12,8 +12,10 @@ classdef Optimizer < handle
         gradients;
         fitnesses;
         
+        times = [];
         ax;
         start;
+        start_fitness;
         expressions;
         constraints;
     end
@@ -30,6 +32,7 @@ classdef Optimizer < handle
             
             
             self.start = self.get_current_inputs();
+            self.start_fitness = self.get_fitness(self.start);
             test = self.start + rand(size(self.start)) * 2 - 1;
 %             self.get_fitness(self.start)
 %             finish = self.get_node_locations();
@@ -47,7 +50,21 @@ classdef Optimizer < handle
             l = self.ez_optimize(test);
             
             self.get_fitness(l)
-            self.get_fitness(self.start)
+            
+            disp('final fitness is:')
+            min(self.fitnesses)
+            
+            
+
+            subplot(2,1,1)
+            hold on
+            plot(self.fitnesses)
+            f = self.start_fitness;
+            plot([1, length(self.fitnesses)], [f, f], 'r--')
+            subplot(2,1,2)
+            semilogy(self.fitnesses)
+            semilogy([1, length(self.fitnesses)], [f, f], 'r--')
+            
             s=self.suspension;
             plot_system_3d('k', s.curr_knuckle, s.curr_pca, s.curr_aca, s.curr_rocker, s.curr_rack, s.curr_pushrod, s.curr_shock);
         end
@@ -123,12 +140,12 @@ classdef Optimizer < handle
         
         function fitness = get_fitness(self, inputs)
             num_sweeps = 3;
+            tic
             self.update_inputs(inputs);
             [static_char, dyn_char] = self.suspension.perform_sweep(num_sweeps, 0);
             fitness = calc_fitness(static_char, dyn_char, self.desired_static_char, self.static_char_weights, self.desired_dyn_char, self.dyn_char_weights);
             self.fitnesses(end + 1) = fitness;
-            scatter(self.ax, length(self.fitnesses), fitness, 'bo')
-            drawnow()
+            self.times(end+1) = toc;
         end
         
         function locations = get_node_locations(self)

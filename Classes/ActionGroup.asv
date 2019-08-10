@@ -84,12 +84,13 @@ classdef ActionGroup < handle
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
             fprintf('STARTING SWEEP\n')
             self.plot_on = plot_on;
-            clf;
-            hold on;
-            plot_system_3d('b', self.curr_knuckle);
-            plot_system_3d('r', self.curr_aca, self.curr_pca);
-            plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
-            
+            if plot_on
+                clf;
+                hold on;
+                plot_system_3d('b', self.curr_knuckle);
+                plot_system_3d('r', self.curr_aca, self.curr_pca);
+                plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
+            end
             static_lateral_pos = self.curr_aca.tip.location(1);
             shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
             shock_start_step = self.curr_shock.total_travel / -2;
@@ -151,10 +152,11 @@ classdef ActionGroup < handle
             self.curr_knuckle.update_toe_plane();
             self.calc_static_char();
             static_char = self.static_char;
+            
             self.dyn_char.toes = toes;
             self.dyn_char.cambers = cambers;
             self.dyn_char.contact_patches = contact_patches;
-            self.curr_knuckle.wheel.center
+            dyn_char = self.dyn_char;
         end
         
         function take_shock_step(self, step)
@@ -228,7 +230,7 @@ classdef ActionGroup < handle
         function [cambers, toes, contact_patches] = perform_rack_sweep(self, rack_start_step, rack_step_size, num_steps)
             self.reset_rack();
             self.take_rack_step(rack_start_step);
-            self.interference_detection(0);
+            self.interference_detection(1);
             toes = zeros(1,num_steps);
             cambers = zeros(1,num_steps);
             contact_patches = zeros(3, num_steps);
@@ -237,7 +239,7 @@ classdef ActionGroup < handle
             
             for index = 2:num_steps
                 self.take_rack_step(rack_step_size);
-                self.interference_detection(0);
+                self.interference_detection(1);
 
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
@@ -286,37 +288,59 @@ classdef ActionGroup < handle
             % Check for toe-link aca interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
+                if debug
+                    disp('toe-link aca interference 1')
+                end
                 return;
             end
             % Check for toe-link aca interference (second arm)
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
+                if debug
+                    disp('toelink aca interference 2')
+                end
                 return;
             end
             % Check for pushrod toelink interference
             if line_line_interference(self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod toelink interference')
+                end
                 return;
             end
             
             % Check for pushrod aca interference
             if line_line_interference(self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod aca interference 1')
+                end
                 return;
             end
             % Check for pushrod aca interference (second arm)
             if line_line_interference(self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod aca interference 2')
+                end
                 return;
             end
             % Check for pushrod pca interference
             if line_line_interference(self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                if debug
+                    disp('pushrod pca interference 1')
+                end
                 return;
             end
             % Check for pushrod pca interference (second arm)
             if line_line_interference(self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r,...
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
+                
+                if debug
+                    disp('pushrod aca interference 2')
+                end
                 return;
             end
             
@@ -327,22 +351,37 @@ classdef ActionGroup < handle
                 % Check for toe link interference
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r)
+                    if debug
+                        disp('Wheel toelink interference')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
+                    if debug
+                        disp('Wheel aca interference 1')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
+                    if debug
+                        disp('Wheel aca interference 2')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r)
+                    if debug
+                        disp('Wheel pca interference 1')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
                                             self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r)
+                    if debug
+                        disp('Wheel aca interference 1')
+                    end
                     return;
                 end
                 if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
@@ -373,7 +412,8 @@ classdef ActionGroup < handle
         end
         
         function RCH = calc_roll_center_height(self, IC)
-            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.calc_contact_patch());
+            self.curr_knuckle.wheel.update();
+            cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.contact_patch);
             v = unit(cp - IC);
             n = -IC(1) / v(1);
             RC = IC + n*v;

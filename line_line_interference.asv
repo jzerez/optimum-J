@@ -15,8 +15,8 @@ function res = line_line_interference(x1, x2, xr, y1, y2, yr)
     
     % Solve linear system of eqns based on the fact that the shortest
     % vector connecting two lines must be orthogonal to both lines
-    eqn = [dot(u, u), -dot(u, v), -dot(u, p) + dot(q, u);...
-           dot(u, v), -dot(v, v), -dot(v, p) + dot(q, v)];
+    eqn = [dot(u, u), dot(u, v), -dot(u, p) + dot(q, u);...
+           dot(u, v), dot(v, v), -dot(v, p) + dot(q, v)];
        
     sols = rref(eqn);
     a = sols(1, 3);
@@ -33,8 +33,7 @@ function res = line_line_interference(x1, x2, xr, y1, y2, yr)
         res = false;
         return
     else
-        % If the points of interest (p1, q1) along each line is outside the line
-        % segment
+        % If the 
         if a < 0 || b < 0 || a > norm(x2-x1) || b > norm(y2 - y1)
             res = false;
             return

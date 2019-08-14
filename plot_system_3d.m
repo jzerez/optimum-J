@@ -76,14 +76,15 @@ function plot_system_3d(varargin)
             for index = 1:length(ds)
                 d = ds(index);
                 r = rs(index);
-                a = rot_axis * d + A;
-                b = rot_axis * d + B;
-                c = rot_axis * d + C;
-                pts = c + (r * a * sind(thetas)) + (r * b * cosd(thetas));
+
+                c = -rot_axis * d + C;
+                pts = c + (r * A * sind(thetas)) + (r * B * cosd(thetas));
                 plot3(pts(1, :), pts(2, :), pts(3, :), color)
-                quiver3(c(1), c(2), c(3), a(1)*r, a(2)*r, a(3)*r)
-                quiver3(c(1), c(2), c(3), b(1)*r, b(2)*r, b(3)*r)
-                quiver3(c(1), c(2), c(3), rot_axis(1)*10, rot_axis(2)*10, rot_axis(3)*10)
+                if index == 1
+                    quiver3(c(1), c(2), c(3), A(1)*r, A(2)*r, A(3)*r)
+                    quiver3(c(1), c(2), c(3), B(1)*r, B(2)*r, B(3)*r)
+                    quiver3(c(1), c(2), c(3), rot_axis(1)*10, rot_axis(2)*10, rot_axis(3)*10)
+                end
                 scatter3(c(1), c(2), c(3), 20, 'filled', color);
             end
         end

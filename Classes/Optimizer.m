@@ -33,7 +33,7 @@ classdef Optimizer < handle
             
             self.start = self.get_current_inputs();
             self.start_fitness = self.get_fitness(self.start);
-            test = self.start + rand(size(self.start)) * 2 - 1;
+%             test = self.start + rand(size(self.start)) * 2 - 1;
 %             self.get_fitness(self.start)
 %             finish = self.get_node_locations();
 %             test = self.start + (rand(size(self.start)) * 3 - 1.5);
@@ -47,7 +47,7 @@ classdef Optimizer < handle
             figure;
             hold on;
             self.ax = gca;
-            l = self.ez_optimize(test);
+            l = self.ez_optimize(self.start);
             
             self.get_fitness(l)
             
@@ -56,21 +56,20 @@ classdef Optimizer < handle
             
             
 
-            subplot(2,1,1)
             hold on
             plot(self.fitnesses)
             f = self.start_fitness;
             plot([1, length(self.fitnesses)], [f, f], 'r--')
-            subplot(2,1,2)
-            semilogy(self.fitnesses)
-            semilogy([1, length(self.fitnesses)], [f, f], 'r--')
             
+            figure;
+            hold on
             s=self.suspension;
             plot_system_3d('k', s.curr_knuckle, s.curr_pca, s.curr_aca, s.curr_rocker, s.curr_rack, s.curr_pushrod, s.curr_shock);
         end
         
         function l = ez_optimize(self, pos)
-            l = fmincon(@self.get_fitness, pos, self.expressions, self.constraints);
+            options = optimoptions(@fmincon,'MaxFunctionEvaluations',15000);
+            l = fmincon(@self.get_fitness, pos, self.expressions, self.constraints, [], [], [], [], [], options);
         end
         
         function optimize(self)

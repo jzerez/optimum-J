@@ -4,7 +4,6 @@ classdef AArm < handle
         endpoints;
         static_plane;
         action_plane;
-        tab_offset = 1.5;        %in
         unit_directions;
         pivots;
         pivot_axis;
@@ -86,11 +85,9 @@ classdef AArm < handle
         
         function update(self)
             tip_loc = self.tip.location;
-            endpoints_loc = [self.endpoints(1).location, self.endpoints(2).location];
             self.static_plane = Plane(tip_loc, self.endpoints(1).location, self.endpoints(2).location);
-            directions = tip_loc - endpoints_loc;
-            self.unit_directions = directions ./ vecnorm(directions);
-            self.pivots = endpoints_loc + (self.unit_directions * self.tab_offset);
+            self.pivots = self.get_endpoint_locations();
+
             self.pivot_axis = unit(diff(self.pivots, 1, 2));
             self.effective_center = self.pivots(:, 2) - self.pivot_axis * dot(self.pivot_axis, self.pivots(:, 2) - self.tip.location);
             self.effective_radius = norm(self.effective_center - self.tip.location);

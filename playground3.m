@@ -1,43 +1,37 @@
 addpath Classes
 
 clf
-
-p4 = [23.2; 6.73; 30.7];
-
-% center to edge distance; total area of d is 3x3x3
-d = [1.5; 1.5; 1.5]*3;
+d = [1.5; 1.5; 1.5];
+p4 = [23.2; 7.73; 30.7];
 
 n_pushrod_in = Node([11.1; 15.0; 27.6], d);
 n_pushrod_out = Node(p4, d);
 pushrod = Line(n_pushrod_in, n_pushrod_out);
 
-p1 = [8.4; 4.5; 25.6];
-p2 = [7.8; 4.5; 36.9];
-p3 = [24.2; 6.73; 30.7];
 
-n1 = Node(p1, d);
-n2 = Node(p2, d);
-n3 = Node(p3, d);
+lower_tip = [21.2; 7.5; 30.7];
+
+n1 = Node(NaN, [7, 10; 2, 8; 23, 29]');
+n2 = Node(NaN, [7, 10; 2, 8; 36, 38]');
+n3 = Node(lower_tip, [3; 0.5; 1.5]);
 
 lower_wishbone = AArm(n3, n2, n1, n_pushrod_out);
 
-p11 = [9.3; 12.7; 36.5];
-p22 = [9.2; 12.5; 25.7];
 
 
-p33 = [24.0; 12.2; 30.3];
-n11 = Node(p11, d);
-n22 = Node(p22, d);
-n33 = Node(p33, d);
+upper_tip = [21.0; 12.2; 30.3];
+n11 = Node(NaN, [7, 10; 12.4, 14.6; 23, 27]');
+n22 = Node(NaN, [7, 11; 10, 15; 33, 39]');
+n33 = Node(upper_tip, [3; 0.5; 1.5]);
 upper_wishbone = AArm(n33, n22, n11);
 
-wheel = Wheel(-1, -1, [25; 9.88; 30], [9, 4.75, 4.75, 5.1], [0, 0,3.3, 3.88]);
+wheel = Wheel(-1, -1, [25; 9.88; 30], [9, 4.75, 4.75, 5.1], [0, 0, 3.3, 3.88]);
 
-n_outboard_toe = Node([24.39; 8.63; 32.98], d);
+n_outboard_toe = Node([21.39; 8.63; 32.98], d*6);
 
 knuckle = Knuckle(upper_wishbone.tip, lower_wishbone.tip, n_outboard_toe, wheel);
 
-n_rocker_pivot = Node([10.2; 13.6; 27.2], d);
+n_rocker_pivot = Node(NaN, [7, 10; 12.4, 14.6; 23, 28]');
 action_plane = Plane(n_pushrod_in.location, n_pushrod_out.location, n_rocker_pivot.location);
 
 p_rocker_shock = [12.4; 15.4; 28.1];
@@ -46,7 +40,7 @@ n_rocker_shock = Node(action_plane.project_into_plane(p_rocker_shock), d);
 
 rocker = Rocker(n_rocker_pivot, n_rocker_shock, n_pushrod_in);
 
-rack_node = Node([0;6.75;30.2-2], d);
+rack_node = Node([0;6.75;30.2], d*3);
 
 rack = Rack(rack_node, 2, 12.1);
 p_shock_in = action_plane.project_into_plane([8.3; 20.7; 27.2]);

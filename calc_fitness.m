@@ -31,7 +31,7 @@ function fitness = calc_fitness(static_char, dyn_char, desired_static_char, stat
     v2 = dyn_char.contact_patches(end, round(s/2), :);
     % Find vertical dist
     wheel_travel = abs(v2(2) - v1(2));
-    if wheel_travel < in_to_mm(50)
+    if wheel_travel < desired_dyn_char.min_wheel_travel
         travel_error = dyn_char_weights.min_wheel_travel;
     else
         travel_error = abs(wheel_travel - desired_dyn_char.wheel_travel) * dyn_char_weights.wheel_travel;

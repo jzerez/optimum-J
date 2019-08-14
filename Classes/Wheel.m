@@ -36,6 +36,7 @@ classdef Wheel < handle
         function update(self)
             vec = [0; -1; 0] + self.center;
             self.contact_patch = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
+            
         end
         
     end

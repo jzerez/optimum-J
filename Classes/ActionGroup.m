@@ -239,7 +239,7 @@ classdef ActionGroup < handle
             
             for index = 2:num_steps
                 self.take_rack_step(rack_step_size);
-                b= self.interference_detection(1);
+                b = self.interference_detection(1);
 
                 [camber, toe] = self.curr_knuckle.calc_camber_and_toe();
 
@@ -250,6 +250,7 @@ classdef ActionGroup < handle
                     plot_system_3d('g', self.curr_knuckle)
                 end
             end
+            contact_patches = reshape(contact_patches', [1, num_steps, 3]);
         end
         
         function calc_knuckle_rotation(self)
@@ -271,6 +272,7 @@ classdef ActionGroup < handle
             % update toe point of knuckle
             self.curr_knuckle.toe_node.location = new_location;
             self.curr_knuckle.update_action_plane();
+            self.curr_knuckle.wheel.update();
         end
         
         function reset_rack(self)
@@ -347,44 +349,45 @@ classdef ActionGroup < handle
             for index = 1:length(self.curr_knuckle.wheel.radii)
                 w = self.curr_knuckle.wheel;
                 wr = w.radii(index);
-                c = w.center + w.axial_dists(index) * w.axis;
+                c = w.center - w.axial_dists(index) * w.axis;
+                p = Plane(c, w.axis);
                 % Check for toe link interference
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                             self.curr_rack.endpoint_location, self.curr_knuckle.toe_node.location, r)
                     if debug
                         disp('Wheel toelink interference')
                     end
                     return;
                 end
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                             self.curr_aca.endpoints(1).location, self.curr_aca.tip.location, r)
                     if debug
                         disp('Wheel aca interference 1')
                     end
                     return;
                 end
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                             self.curr_aca.endpoints(2).location, self.curr_aca.tip.location, r)
                     if debug
                         disp('Wheel aca interference 2')
                     end
                     return;
                 end
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                             self.curr_pca.endpoints(1).location, self.curr_pca.tip.location, r)
                     if debug
                         disp('Wheel pca interference 1')
                     end
                     return;
                 end
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                             self.curr_pca.endpoints(2).location, self.curr_pca.tip.location, r)
                     if debug
                         disp('Wheel pca interference 2')
                     end
                     return;
                 end
-                if line_circle_interference(c, wr, self.curr_knuckle.wheel.plane,...
+                if line_circle_interference(c, wr, p,...
                                           self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                     
                     if debug

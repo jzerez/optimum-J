@@ -50,6 +50,10 @@ function fitness = calc_fitness(static_char, dyn_char, desired_static_char, stat
     scrub_error = abs(avg_scrub - desired_dyn_char.scrub) * dyn_char_weights.scrub;
     dynamic_error = scrub_error + dynamic_error;
     
+    % max steering error %
+    max_steer = mean(maxk(reshape(dyn_char.toes, [1, numel(dyn_char.toes)]), 3));
+    max_steer_error = (desired_dyn_char.max_steer_angle > max_steer) * dyn_char_weights.max_steer_angle;
+    dynamic_error = max_steer_error + dynamic_error;
+    
     fitness = dynamic_error + static_error;
-
 end

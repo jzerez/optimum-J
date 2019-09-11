@@ -18,6 +18,7 @@ classdef Optimizer < handle
         start_fitness;
         expressions;
         constraints;
+        plot_on = 0;
     end
     
     methods (Access = public)
@@ -44,9 +45,7 @@ classdef Optimizer < handle
             self.static_locations = zeros([3, num_nodes, max_steps+1]);
             self.fitnesses = [];
             self.gradients = zeros([num_nodes, max_steps+1]);
-            figure;
-            hold on;
-            self.ax = gca;
+            
             l = self.ez_optimize(self.start);
             
             self.get_fitness(l)
@@ -54,21 +53,23 @@ classdef Optimizer < handle
             disp('final fitness is:')
             min(self.fitnesses)
             
-            
-
-            hold on
-            plot(self.fitnesses)
-            f = self.start_fitness;
-            plot([1, length(self.fitnesses)], [f, f], 'r--')
-            
-            figure;
-            hold on
-            s=self.suspension;
-            plot_system_3d('k', s.curr_knuckle, s.curr_pca, s.curr_aca, s.curr_rocker, s.curr_rack, s.curr_pushrod, s.curr_shock);
+            if self.plot_on
+                figure;
+                hold on;
+                self.ax = gca;
+                plot(self.fitnesses)
+                f = self.start_fitness;
+                plot([1, length(self.fitnesses)], [f, f], 'r--')
+                
+                figure;
+                hold on
+                s=self.suspension;
+                plot_system_3d('k', s.curr_knuckle, s.curr_pca, s.curr_aca, s.curr_rocker, s.curr_rack, s.curr_pushrod, s.curr_shock);
+            end
         end
         
         function l = ez_optimize(self, pos)
-            options = optimoptions(@fmincon,'MaxFunctionEvaluations',15000);
+            options = optimoptions(@fmincon,'MaxFunctionEvaluations',15000, 'Algorithm', 'sqp');
             l = fmincon(@self.get_fitness, pos, self.expressions, self.constraints, [], [], [], [], [], options);
         end
         
@@ -141,7 +142,13 @@ classdef Optimizer < handle
             num_sweeps = 3;
             tic
             self.update_inputs(inputs);
+%             clf;
+%             hold on;
+%             s = self.suspension;
+%             plot_system_3d('k', s.curr_rocker, s.curr_shock, s.curr_aca, s.curr_pushrod, s.curr_pca, s.curr_knuckle);
+%             drawnow()
             [static_char, dyn_char] = self.suspension.perform_sweep(num_sweeps, 0);
+            
             fitness = calc_fitness(static_char, dyn_char, self.desired_static_char, self.static_char_weights, self.desired_dyn_char, self.dyn_char_weights);
             self.fitnesses(end + 1) = fitness;
             self.times(end+1) = toc;
@@ -191,17 +198,18 @@ classdef Optimizer < handle
                     A(row + 1, end) = -nodes(index).region.(region_lims{limit_index + 1});
                 end
             end
-            shock_sign = sign(self.start(end-2));
-            pushrod_sign = sign(self.start(end-1));
+            shock_angle = self.start(end-2);
+            pushrod_angle = self.start(end-1);
             
             % Shock angle limits
-            A([end-5, end-4], [end-3, end]) = [shock_sign, 170;...
-                                              -shock_sign, -10];
+            A([end-5, end-4], [end-3, end]) = [sign(shock_angle), sign(shock_angle) * (shock_angle + sign(shock_angle) * 15);...
+                                              -sign(shock_angle), sign(shock_angle) * (-shock_angle + sign(shock_angle) * 15)];
             % pushrod angle limits
-            A([end-3, end-2], [end-2, end]) = [pushrod_sign, 174;...
-                                              -pushrod_sign, -6];
+            A([end-3, end-2], [end-2, end]) = [sign(pushrod_angle), sign(pushrod_angle) * (pushrod_angle + sign(pushrod_angle) * 5);...
+                                              -sign(pushrod_angle), sign(pushrod_angle) * (-pushrod_angle + sign(pushrod_angle) * 5)];
             % length limits
-            A([end-1, end], [end-1, end]) = [1, 25; -1, -5];
+%             A([end-1, end], [end-1, end]) = [1, 25; -1, -10];
+            A([end-1, end], [end-1, end]) = [1, 13.52; -1, -13.52];
             
             
             expressions = A(:, 1:end-1);

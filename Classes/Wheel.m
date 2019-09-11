@@ -10,6 +10,8 @@ classdef Wheel < handle
         contact_patch;  % Location of the contact patch 
         
         plane;          % Wheel plane. Normal to axis, coincident with center
+        
+        static_center;
     end
     
     methods
@@ -19,11 +21,21 @@ classdef Wheel < handle
             assert(numel(radii) == numel(axial_dists));
             self.radii = radii;
             self.axial_dists = axial_dists;
-            self.center = wheel_center;
-            y = sind(static_camber);
-            h = cosd(static_camber);
-            x = cosd(static_toe) / h;
-            z = sind(static_toe) / h;
+            self.static_center = wheel_center;
+            self.initialize(wheel_center);
+        end
+        
+        function update(self)
+            vec = [0; -1; 0] + self.center;
+            self.contact_patch = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
+        end
+        
+        function initialize(self, center)
+            self.center = center;
+            y = -sind(self.static_camber);
+            h = cosd(self.static_camber);
+            x = cosd(self.static_toe) / h;
+            z = sind(self.static_toe) / h;
             
             % Axis perpendicular to the plane of the wheel
             self.axis = unit([x; y; z]);
@@ -31,12 +43,6 @@ classdef Wheel < handle
             
             self.plane = Plane(self.center, self.axis);
             self.update();
-        end
-        
-        function update(self)
-            vec = [0; -1; 0] + self.center;
-            self.contact_patch = unit(self.plane.project_into_plane(vec) - self.center) * self.radii(1) + self.center;
-            
         end
         
     end

@@ -25,7 +25,7 @@ function point = calc_planar_link_from_angle(plane, center1, radius1, center2, a
     
     % Check for degenerate cases of angles close to  0, 180, 360, etc
     % Those angles should be restricted by the constraints set in Optimizer
-    assert(mod(angle, 180) > 5 && mod(angle, 180) < 175);
+%     assert(mod(angle, 180) > 5 && mod(angle, 180) < 175);
     
     theta0 = atan2d(center2_2d(2), center2_2d(1));
     

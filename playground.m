@@ -5,7 +5,7 @@ clf
 p4 = [23.2; 6.73; 30.7];
 
 % center to edge distance; total area of d is 3x3x3
-d = [1.5; 1.5; 1.5]*3;
+d = [1.5; 1.5; 1.5];
 
 n_pushrod_in = Node([11.1; 15.0; 27.6], d);
 n_pushrod_out = Node(p4, d);
@@ -13,11 +13,11 @@ pushrod = Line(n_pushrod_in, n_pushrod_out);
 
 p1 = [8.4; 4.5; 25.6];
 p2 = [7.8; 4.5; 36.9];
-p3 = [24.2; 6.73; 30.7];
+p3 = [24.2; 6.73+0.75; 30.7];
 
-n1 = Node(p1, d);
-n2 = Node(p2, d);
-n3 = Node(p3, d);
+n1 = Node(p1, d*2);
+n2 = Node(p2, d*2);
+n3 = Node(p3, d*2);
 
 lower_wishbone = AArm(n3, n2, n1, n_pushrod_out);
 

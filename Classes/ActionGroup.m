@@ -91,6 +91,7 @@ classdef ActionGroup < handle
                 plot_system_3d('r', self.curr_aca, self.curr_pca);
                 plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
             end
+            
             static_lateral_pos = self.curr_aca.tip.location(1);
             shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
             shock_start_step = self.curr_shock.total_travel / -2;
@@ -139,6 +140,7 @@ classdef ActionGroup < handle
                 ylabel('Shock Displacement From Static (in)')
                 
                 figure
+                hold on;
                 imagesc(rack_steps, shock_steps, toes)
                 c = colorbar;
                 ylabel(c, 'Toe (Degrees)')
@@ -157,6 +159,12 @@ classdef ActionGroup < handle
             self.dyn_char.cambers = cambers;
             self.dyn_char.contact_patches = contact_patches;
             dyn_char = self.dyn_char;
+%             assert(norm(self.curr_knuckle.wheel.center - [25;9.88;30]) < 1e-3);
+
+            [c, t] = self.curr_knuckle.calc_camber_and_toe();
+            if abs(abs(c) - 1) > 1e-3 || abs(abs(t)-1) > 1e-3 || norm(self.curr_knuckle.wheel.center - [25; 8.98; 30.5]) > 1e-3
+                disp('did not reset toe/camber correctly :(')
+            end
         end
         
         function take_shock_step(self, step)
@@ -341,7 +349,7 @@ classdef ActionGroup < handle
                                       self.curr_pushrod.inboard_node.location, self.curr_pushrod.outboard_node.location, r)
                 
                 if debug
-                    disp('pushrod aca interference 2')
+                    disp('pushrod pca interference 2')
                 end
                 return;
             end
@@ -411,9 +419,12 @@ classdef ActionGroup < handle
             eqns = [pca_line, aca_line, (aca_point - pca_point)];
             sols = rref(eqns);
             n = sols(1, 3);
-            IC = pca_point - n * pca_line;
+            IC = pca_point + n * pca_line;
+            if abs(dot(unit(IC-aca_point), aca_line)) < 1 - 1e-4
+                IC = pca_point - n * pca_line;
+                assert(abs(dot(unit(IC-aca_point), aca_line)) < 1- 1e-4);
+            end
         end
-        
         function RCH = calc_roll_center_height(self, IC)
             self.curr_knuckle.wheel.update();
             cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.contact_patch);
@@ -472,7 +483,7 @@ classdef ActionGroup < handle
                 return
             end
             n = sols(1, 3);
-            IC = pca_point - n * pca_line;
+            IC = pca_point + n * pca_line;
             SVSA = abs(cp(3) - IC(3));
             if strcmp(self.suspension_type, 'front')
                 anti = self.front_brake_percentage * (IC(2) / SVSA) * self.wheelbase / self.cgh;

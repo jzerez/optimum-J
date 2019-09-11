@@ -87,6 +87,7 @@ classdef Knuckle < handle
         end
         
         function update(self)
+            self.wheel.initialize(self.wheel.static_center);
             self.axis = unit(self.pca_node.location - self.aca_node.location);
             
             toe_to_aca = (self.toe_node.location - self.aca_node.location);
@@ -96,17 +97,21 @@ classdef Knuckle < handle
             self.toe_radius = norm(axis_normal);
             plane_normal = cross(unit(axis_normal), self.axis);
             
+            if plane_normal(1) > 0
+                plane_normal = -plane_normal;
+            end
+            
             self.a_arm_dist = norm(self.pca_node.location - self.aca_node.location);
             
             wheel_center_v1 = self.wheel.center - self.aca_node.location;
             wheel_center_v2 = self.wheel.axis_point - self.aca_node.location;
             self.wheel_center_offset1 = [dot(wheel_center_v1, self.axis);...
                                          dot(wheel_center_v1, unit(axis_normal));...
-                                         dot(wheel_center_v1, plane_normal);];
+                                         dot(wheel_center_v1, plane_normal)];
             
             self.wheel_center_offset2 = [dot(wheel_center_v2, self.axis);...
                                          dot(wheel_center_v2, unit(axis_normal));...
-                                         dot(wheel_center_v2, plane_normal);];
+                                         dot(wheel_center_v2, plane_normal)];
             
             self.update_toe_plane();
             self.update_action_plane();

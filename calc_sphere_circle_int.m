@@ -7,7 +7,7 @@ function [v1, v2] = calc_sphere_circle_int(sphere_center, sphere_radius, circle_
     circle_center2d = circle_plane.convert_to_planar_coor(circle_center);
 
     if any(isnan(sphere_center2d)) || any(isnan(circle_center2d)) || any(~isreal(sphere_center2d)) || any(~isreal(circle_center2d)) || isnan(sphere_eff_radius) || isnan(circle_radius) || ~isreal(sphere_eff_radius) || ~isreal(circle_radius)
-        disp('rip')
+        disp('sphere-circle linkage failure')
     end
     [x,y] = circcirc(sphere_center2d(1), sphere_center2d(2), sphere_eff_radius, ...
                      circle_center2d(1), circle_center2d(2), circle_radius);

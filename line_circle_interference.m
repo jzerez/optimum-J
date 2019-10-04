@@ -7,7 +7,8 @@ function res = line_circle_interference(center, radius, plane, x1, x2, xr)
     norm_vec = plane.calc_norm_dist(x1) * plane.normal;
     n = -dot(norm_vec, (x1 - plane.position)) / dot(norm_vec, v);
     int = x1 + n*v;
-    
+    assert(plane.is_in_plane(int))
+    norm(int-center)
     if norm(int - center) > (radius - xr)
         res = true;
         return

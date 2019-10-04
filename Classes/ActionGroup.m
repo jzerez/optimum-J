@@ -162,7 +162,13 @@ classdef ActionGroup < handle
 %             assert(norm(self.curr_knuckle.wheel.center - [25;9.88;30]) < 1e-3);
 
             [c, t] = self.curr_knuckle.calc_camber_and_toe();
-            if abs(abs(c) - 1) > 1e-3 || abs(abs(t)-1) > 1e-3 || norm(self.curr_knuckle.wheel.center - [25; 8.98; 30.5]) > 1e-3
+            if strcmp(self.suspension_type, 'front')
+                cp = [25; 8.98; 30.5];
+            else
+                cp = [25; 8.98; -30.5];
+            end
+            
+            if abs(abs(c) - 1) > 1e-3 || abs(abs(t)-1) > 1e-3 || norm(self.curr_knuckle.wheel.center - cp) > 1e-3
                 disp('did not reset toe/camber correctly :(')
             end
         end

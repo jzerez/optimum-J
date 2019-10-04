@@ -202,13 +202,13 @@ classdef Optimizer < handle
             pushrod_angle = self.start(end-1);
             
             % Shock angle limits
-            A([end-5, end-4], [end-3, end]) = [sign(shock_angle), sign(shock_angle) * (shock_angle + sign(shock_angle) * 15);...
-                                              -sign(shock_angle), sign(shock_angle) * (-shock_angle + sign(shock_angle) * 15)];
+            A([end-5, end-4], [end-3, end]) = [sign(shock_angle), sign(shock_angle) * (shock_angle + sign(shock_angle) * 0);...
+                                              -sign(shock_angle), sign(shock_angle) * (-shock_angle + sign(shock_angle) * 0)];
             % pushrod angle limits
-            A([end-3, end-2], [end-2, end]) = [sign(pushrod_angle), sign(pushrod_angle) * (pushrod_angle + sign(pushrod_angle) * 5);...
-                                              -sign(pushrod_angle), sign(pushrod_angle) * (-pushrod_angle + sign(pushrod_angle) * 5)];
+            A([end-3, end-2], [end-2, end]) = [sign(pushrod_angle), sign(pushrod_angle) * (pushrod_angle + sign(pushrod_angle) * 0);...
+                                              -sign(pushrod_angle), sign(pushrod_angle) * (-pushrod_angle + sign(pushrod_angle) * 0)];
             % length limits
-%             A([end-1, end], [end-1, end]) = [1, 25; -1, -10];
+%             A([end-1, end], [end-1, end]) = [1, 18; -1, -10];
             A([end-1, end], [end-1, end]) = [1, 13.52; -1, -13.52];
             
             

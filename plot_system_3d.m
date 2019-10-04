@@ -7,6 +7,7 @@ function plot_system_3d(varargin)
     zlabel('z (in)')
     view(3)
     camup('manual') 
+    view(90, 0)
     camup([0 1 0])
     cameratoolbar('Show')
     for plot_element = 2:nargin

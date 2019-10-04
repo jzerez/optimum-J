@@ -38,5 +38,9 @@ classdef Node < handle
         function shuffle(self)
             self.location = self.region.generate_starting_point();
         end
+        
+        function new_region(self, v)
+            self.region = Region(self.location, v);
+        end
     end
 end

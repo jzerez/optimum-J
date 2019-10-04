@@ -33,7 +33,12 @@ function out = print_solidworks_vector(ag)
     
     rocker = ag.curr_rocker.pivot_node.location;
     shock_in = ag.curr_shock.inboard_node.location;
+    pushrod_in = ag.curr_pushrod.inboard_node.location;
+    pushrod_out = ag.curr_pushrod.outboard_node.location;
+    toelink_in = ag.curr_rack.endpoint_location;
+    toelink_out = ag.curr_knuckle.toe_node.location;
     
-    out = [flr; flf; flt; fur; fuf; fut; rocker; shock_in];
+    
+    out = [flr; flf; flt; fur; fuf; fut; rocker; shock_in; pushrod_in; pushrod_out; toelink_in; toelink_out];
     out = out';
 end

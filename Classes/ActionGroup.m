@@ -1,21 +1,44 @@
+% Action group meant for sweeping the range of the suspension.
 classdef ActionGroup < handle
+    
     properties
+        % Plane of the rocker
         action_plane;
         colors = ['r', 'g', 'b', 'k', 'm', 'c'];
+        
         plot_on = false;
         
+        % Length of toelink [in]
         toelink_length;
         
+        % Rocker object
         curr_rocker;
+        
+        % Shock object
         curr_shock;
+        
+        % Pushrod (Line object)
         curr_pushrod;
+        
+        % Active Control Arm (attached to the pushrod) (AArm Object)
         curr_aca;
+        
+        % Passive Control Arm (not attached to pushrod) (AArm Object)
         curr_pca;
+        
+        % Rack object
         curr_rack;
+        
+        % Knuckle object
         curr_knuckle;
+        
+        % Car's wheelbase [in]
         wheelbase = 61;
+        
+        % Center of Gravity Height [in]
         cgh = 9;
         
+        % Type of suspension ['front' or 'rear']
         suspension_type;
         
         % Static Characteristics (scalars)
@@ -36,9 +59,12 @@ classdef ActionGroup < handle
         
         front_view_plane;
         side_view_plane;
+        
+        % Front brake bias
         front_brake_percentage = 0.4;
-        node_list = zeros([1, 13]);
-        loc_list = cell(1, 13);
+        
+        % Radius of the suspension members [in]
+        suspension_member_radius = 0.25;
     end
    
     methods
@@ -61,15 +87,6 @@ classdef ActionGroup < handle
                 self.action_plane.normal = -self.action_plane.normal;
                 self.action_plane.update();
             end
-            self.node_list = [rocker.pivot_node];
-            self.node_list(2) = shock.inboard_node;
-            self.node_list(3) = pushrod.outboard_node;
-            self.node_list(4:5) = aca.endpoints;
-            self.node_list(6:7) = pca.endpoints;
-            self.node_list(8) = knuckle.aca_node;
-            self.node_list(9) = knuckle.pca_node;
-            self.node_list(10) = knuckle.toe_node;
-            self.node_list(11) = rack.location_node;
             
 %             assert(rocker.plane.is_in_plane(shock.inboard_node.location));
             
@@ -82,8 +99,21 @@ classdef ActionGroup < handle
         end
         
         function [static_char, dyn_char] = perform_sweep(self, num_steps, plot_on)
+            % Sweeps the suspension through its range of motion (Shock + steering if applicable)
+            % Arguments: 
+            %   num_steps (int): Number of locations to caclulate between
+            %                    suspension position extremes
+            %   plot_on  (bool): Whether to plot the suspension or not
+            % 
+            % Returns:
+            %   static_char (struct): Contains the static characteristics
+            %                         for the given geometry
+            %   dyn_char    (struct): Contains the dynamic characteristics
+            %                         for the given geometry (vectors)
+            
             fprintf('STARTING SWEEP\n')
             self.plot_on = plot_on;
+            % Plots initial position of suspension
             if plot_on
                 clf;
                 hold on;
@@ -92,7 +122,10 @@ classdef ActionGroup < handle
                 plot_system_3d('k', self.curr_rack, self.curr_rocker, self.curr_shock, self.curr_pushrod);
             end
             
-            static_lateral_pos = self.curr_aca.tip.location(1);
+            % Define the shock and rack positions to sweep over
+            %
+            % NOTE: This assumes that the shock's neutral displacement is
+            % half of its travel
             shock_step_size = self.curr_shock.total_travel / (num_steps - 1);
             shock_start_step = self.curr_shock.total_travel / -2;
             rack_step_size = self.curr_rack.max_travel / (num_steps - 1);
@@ -100,23 +133,28 @@ classdef ActionGroup < handle
             shock_steps = linspace(shock_start_step, -shock_start_step, num_steps);
             rack_steps = linspace(rack_start_step, -rack_start_step, num_steps);
             
+            % move the shock to the starting position
             self.take_shock_step(shock_start_step);
            
+            % Initialize vectors to store results
             cambers = zeros(num_steps);
             toes = zeros(num_steps);
             contact_patches = zeros([num_steps, num_steps, 3]);
             
-
-            
             if plot_on
                 plot_system_3d('c', self.curr_rocker, self.curr_shock, self.curr_aca, self.curr_pushrod, self.curr_pca, self.curr_knuckle);
             end
-
+            
+            % Sweeps through the rack positions 
             [camber, toe, cp] = self.perform_rack_sweep(rack_start_step, rack_step_size, num_steps);
+            
+            % Save results from the first rack sweep
             cambers(1, :) = camber;
             toes(1, :) = toe;
             contact_patches(1, :, :) = cp;
             
+            % Sweep through the rest of the shock positions, doing a rack
+            % sweep at each position. 
             for shock_index = 2:num_steps
                 self.take_shock_step(shock_step_size);
                 if plot_on
@@ -148,18 +186,22 @@ classdef ActionGroup < handle
                 ylabel('Shock Displacement From Static (in)')
                 
             end
+            % Return to neutral position
             self.take_shock_step(-shock_step_size * (num_steps - 1) - shock_start_step);
             
+            % Resets the rack to neutral position
             self.reset_rack();
+            % Resets the knuckle toe plane (to correctly calc static char)
             self.curr_knuckle.update_toe_plane();
             self.calc_static_char();
             static_char = self.static_char;
             
+            % Save dynamic characterisitcs
             self.dyn_char.toes = toes;
             self.dyn_char.cambers = cambers;
             self.dyn_char.contact_patches = contact_patches;
             dyn_char = self.dyn_char;
-%             assert(norm(self.curr_knuckle.wheel.center - [25;9.88;30]) < 1e-3);
+
 
             [c, t] = self.curr_knuckle.calc_camber_and_toe();
             if strcmp(self.suspension_type, 'front')
@@ -168,54 +210,109 @@ classdef ActionGroup < handle
                 cp = [25; 8.98; -30.5];
             end
             
-            if abs(abs(c) - 1) > 1e-3 || abs(abs(t)-1) > 1e-3 || norm(self.curr_knuckle.wheel.center - cp) > 1e-3
+            if abs(c - self.wheel.static_camber) > 1e-3 || abs(t-self.wheel.static_toe) > 1e-3 || norm(self.curr_knuckle.wheel.center - cp) > 1e-3
                 disp('did not reset toe/camber correctly :(')
             end
         end
         
         function take_shock_step(self, step)
+            % Changes shock displacement by a specified amount and recalculates suspension positions
+            %
+            % Arguments:
+            %   step (float): Change in shock length (inches)
+            %
+            % Returns:
+            %   N/A
+            
+            % Calculate how the rocker moves as a result
             self.calc_rocker_movement(step);
+            
+            % Calculate how the active control arm moves
             self.curr_aca = self.calc_xca_movement(self.curr_aca, self.curr_pushrod.inboard_node.location, self.curr_pushrod.length);
+            % Update the knuckle's active control arm node
             self.curr_knuckle.aca_node = self.curr_aca.tip;
             
+            % Update pushrod outboard node location
             self.curr_pushrod.outboard_node.location = self.curr_aca.pushrod_mount.location;
+            
+            % Calculate how the passive control arm moves
             self.curr_pca = self.calc_xca_movement(self.curr_pca, self.curr_knuckle.aca_node.location, self.curr_knuckle.a_arm_dist);
+            % Update the knuckle's passive control arm node
             self.curr_knuckle.pca_node = self.curr_pca.tip;
         end
         
         function take_rack_step(self, step)
+            % Changes rack displacement by a specified amount and recalculates suspension positions
+            %
+            % Arguments:
+            %   step (float): Change in rack displacement (inches)
+            %
+            % Returns:
+            %   N/A
             self.curr_rack.calc_new_endpoint(step);
             self.calc_knuckle_rotation();
         end
         
         function calc_rocker_movement(self, step)
+            % Calculates how much the rocker rotates for a given change in shock displacement
+            %
+            % Arguments:
+            %   step (float): Change in shock displacement (inches)
+            %
+            % Returns:
+            %   N/A
+            
+            % Treat the shock like a circle that lives in the action plane
+            % of the rocker. The circle's center is the inboard mounting
+            % location and the radius is the shock's length
             prev_location = self.curr_shock.outboard_node.location;
             shock_radius = self.curr_shock.curr_length + step;
             shock_center = self.curr_shock.inboard_node.location;
             shock_center = self.action_plane.convert_to_planar_coor(shock_center);
             
+            % Treat the rocker like a circle that lives in the action plane
+            % of the rocker. The circle's center is the inboard mounting
+            % location and the radius is the shock's length
             rocker_radius = self.curr_rocker.shock_lever;
             rocker_center = self.curr_rocker.pivot_node.location;
             rocker_center = self.action_plane.convert_to_planar_coor(rocker_center);
             
+            % Find the possible intersection points
             [x, y] = circcirc(rocker_center(1), rocker_center(2), rocker_radius,...
                               shock_center(1), shock_center(2), shock_radius);
+            
+            % find the two intersection points and convert back into global
+            % coordinates
             p1 = [x(1); y(1)];
             p1 = self.action_plane.convert_to_global_coor(p1);
             p2 = [x(2); y(2)];
             p2 = self.action_plane.convert_to_global_coor(p2);
+            % choose the point closer to the original point
             new_location = find_closer_point(prev_location, p1, p2);
             
+            % update rocker position
             new_rocker_pos = unit(new_location - self.curr_rocker.pivot_node.location);
             old_rocker_pos = unit(prev_location - self.curr_rocker.pivot_node.location);
             theta = -acosd(dot(old_rocker_pos, new_rocker_pos));
-
             self.curr_rocker.rotate(theta, new_location);
+            
+            % Update shock and pushrod 
             self.curr_shock = self.curr_shock.new_outboard_point(new_location);
             self.curr_pushrod.inboard_node.location = self.curr_rocker.control_arm_node.location;
         end
         
         function new_xca = calc_xca_movement(self, xca, ref_point, ref_dist)
+            % Calculates the movement of ANY control arm (passive or active) given a reference point, and the distance to that point from a given reference on the control arm
+            %
+            % Arguments:
+            %   xca             (AArm): The control arm to move
+            %   ref_point (3x1 Vector): The coord of the reference point
+            %   ref_dist       (float): The distance to the reference point
+            %
+            % Returns:
+            %   new_xca         (Aarm): The control arm with updated position
+            
+            
             if xca.active
                 prev_location = xca.pushrod_mount.location;
                 [int1, int2] = calc_sphere_circle_int(ref_point, ref_dist,...
@@ -237,7 +334,8 @@ classdef ActionGroup < handle
             end
             theta = -acosd(dot(old_xca_pos, new_xca_pos));
             new_xca = xca.rotate(theta, new_location);
-
+            
+            % Assure that the reference distance is preserved after rotation
             assert(abs(norm(new_location - ref_point) - ref_dist) < 1e-8);
         end
         
@@ -268,7 +366,13 @@ classdef ActionGroup < handle
         end
         
         function calc_knuckle_rotation(self)
-            % Rotates the knuckle
+            % Rotates the knuckle based on current rack location
+            %
+            % Arguments:
+            %   N/A
+            %
+            % Returns:
+            %   N/A
             
             previous_location = self.curr_knuckle.toe_node.location;
             self.curr_knuckle.update_toe_plane();
@@ -290,13 +394,31 @@ classdef ActionGroup < handle
         end
         
         function reset_rack(self)
+            % Resets the rack to its neutral position and rotates the knuckle accordingly
+            % 
+            % Arguments:
+            %   N/A
+            %
+            % Returns:
+            %   N/A
+            
             self.curr_rack.endpoint_location = self.curr_rack.static_endpoint_location;
             self.calc_knuckle_rotation();
         end
         
         function res = interference_detection(self, debug)
+            % Checks for interference between suspension components
+            % 
+            % Arguments:
+            %   debug (bool): whether or not to print debug statements
+            %
+            % Returns:
+            %   res   (bool): True if interference is detected, False otherwise
+            
             res = true;
-            r = 0.3;
+            
+            % Add some flub room to account for real life errors
+            r = self.suspension_member_radius + 0.05;
             previous_interference = self.static_char.interference;
             if ~previous_interference
                 self.static_char.interference = true;
@@ -419,9 +541,19 @@ classdef ActionGroup < handle
         end
         
         function IC = calc_instant_center(self)
+            % Calculates instant center
+            % 
+            % Arguments:
+            %   N/A
+            %
+            % Returns:
+            %   N/A
+            
+            % Project A-arms into front view plane
             [pca_point, pca_line] = self.curr_pca.static_plane.calc_plane_plane_int(self.front_view_plane);
             [aca_point, aca_line] = self.curr_aca.static_plane.calc_plane_plane_int(self.front_view_plane);
             
+            % find intersection between projected a-arm lines
             eqns = [pca_line, aca_line, (aca_point - pca_point)];
             sols = rref(eqns);
             n = sols(1, 3);
@@ -431,7 +563,16 @@ classdef ActionGroup < handle
                 assert(abs(dot(unit(IC-aca_point), aca_line)) < 1- 1e-4);
             end
         end
+        
         function RCH = calc_roll_center_height(self, IC)
+            % Calculates the roll center height of the car given the instant center
+            %
+            % Arguments:
+            %   IC (3x1 Vector): Coordinate for the instant center
+            %
+            % Returns:
+            %   RCH     (float): Roll center height [in]
+            
             self.curr_knuckle.wheel.update();
             cp = self.front_view_plane.project_into_plane(self.curr_knuckle.wheel.contact_patch);
             v = unit(cp - IC);
@@ -460,11 +601,9 @@ classdef ActionGroup < handle
             assert(abs(axis_contact(2)) < 1e-6);
             mechanical_trail = axis_contact(3) - cp(3);
             scrub_radius = axis_contact(1) - cp(1);
-%             scatter3(axis_contact(1), axis_contact(2), axis_contact(3), 'bo')
-%             hold on
+
             v = [axis_contact, upper_tip];
-%             plot3(v(1, :), v(2, :), v(3, :), 'g--');
-%             scatter3(c(1), c(2), c(3), 'r*');
+
             lower_tip_2d = [lower_tip(1); lower_tip(2)];
             c_2d = [c(1); c(2)];
             
@@ -474,14 +613,21 @@ classdef ActionGroup < handle
         end
         
         function [SVSA, anti] = calc_SVSA_and_anti(self, c, cp)
+            % Calculates the Side-view swing arm length (SVSA) and anti-percentage
+            %
+            % Arguments:
+            %   c  (3x1 Vector): Wheel center coordinate [in]
+            %   cp (3x1 Vector): Contact patch coordinate [in]
+            %
+            % Returns:
+            %   SVSA    (float): Length of SVSA [in]
+            %   anti    (float): anti-percentage (from 0-1)
+            
             [pca_point, pca_line] = self.curr_pca.static_plane.calc_plane_plane_int(self.side_view_plane);
             [aca_point, aca_line] = self.curr_aca.static_plane.calc_plane_plane_int(self.side_view_plane);
             eqns = [pca_line, aca_line, (aca_point - pca_point)];
             sols = rref(eqns);
-%             quiver3(pca_point(1), pca_point(2), pca_point(3), pca_line(1), pca_line(2), pca_line(3));
-%             hold on
-%             quiver3(aca_point(1), aca_point(2), aca_point(3), aca_line(1), aca_line(2), aca_line(3));
-            
+
             % if it is unable to find a solution
             if ~isequal(sols(1:2, 1:2), eye(2))
                 SVSA = inf;
@@ -500,6 +646,13 @@ classdef ActionGroup < handle
         
         function update_all(self)
             % Call all standard update functions for components
+            %
+            % Arguments:
+            %   N/A
+            %
+            % Returns:
+            %   N/A
+            
             fprintf('UPDATING SUSPENSION...\n');
             self.curr_rocker.update();
             self.curr_pushrod.update();
@@ -512,6 +665,7 @@ classdef ActionGroup < handle
         end
         
         function update_planar_nodes(self, input)
+            
             % update action plane
             p1 = self.curr_shock.inboard_node.location;
             p2 = self.curr_pushrod.outboard_node.location;
@@ -575,6 +729,15 @@ classdef ActionGroup < handle
         end
         
         function calc_static_char(self)
+            % Calculates the static characteristics of the geometry.
+            % Updates self.static_char
+            %
+            % Arguments: 
+            %   N/A
+            %
+            % Returns:
+            %   N/A
+            
             c = self.curr_knuckle.wheel.center;
             cp = self.curr_knuckle.wheel.contact_patch;
             
